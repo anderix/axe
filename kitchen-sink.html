@@ -1,0 +1,414 @@
+<!--
+    Axe — Kitchen Sink
+    Author: David M. Anderson
+    Built with AI assistance (Claude, Anthropic)
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Axe — Kitchen Sink</title>
+    <link rel="stylesheet" href="brand.css">
+    <link rel="stylesheet" href="axe.css">
+    <script src="theme.js"></script>
+    <style>
+        .swatch {
+            display: inline-block;
+            width: 2rem;
+            height: 2rem;
+            border-radius: var(--radius);
+            border: 1px solid var(--color-border);
+            vertical-align: middle;
+            margin-right: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <ul>
+        <li><a href="#">Axe</a></li>
+        <li><a href="#typography">Typography</a></li>
+        <li><a href="#lists">Lists</a></li>
+        <li><a href="#tables">Tables</a></li>
+        <li><a href="#cards">Cards</a></li>
+        <li><a href="#details">Details</a></li>
+        <li><a href="#forms">Forms</a></li>
+        <li><a href="#colors">Colors</a></li>
+        <li class="nav-right"><button class="theme-toggle" aria-label="Toggle theme">&#9788;</button></li>
+    </ul>
+</nav>
+
+<main>
+<article>
+
+    <header>
+        <h1>Axe Kitchen Sink</h1>
+        <p>Every styled HTML element in one page. No classes required except the color swatches above.</p>
+    </header>
+
+
+    <!-- ===== TYPOGRAPHY ===== -->
+
+    <section id="typography">
+        <h2>Typography</h2>
+
+        <h1>Heading 1</h1>
+        <h2>Heading 2</h2>
+        <h3>Heading 3</h3>
+        <h4>Heading 4</h4>
+        <h5>Heading 5</h5>
+        <h6>Heading 6</h6>
+
+        <p>This is a standard paragraph. Body text uses the <code>--font-body</code> variable and renders at 1rem
+        with a comfortable line height. The framework sets sensible defaults so that plain HTML reads well without
+        any classes or custom styling.</p>
+
+        <p>Text can be <strong>bold</strong>, <em>italic</em>, or <strong><em>both</em></strong>. You can use
+        <small>small text</small> for captions and fine print. Links look <a href="#">like this</a> and use the
+        accent color. The <mark>mark element</mark> highlights text with a translucent accent wash.</p>
+
+        <p>The <abbr title="Hyper Text Markup Language">HTML</abbr> abbreviation element shows a dotted underline
+        and a help cursor on hover. Superscript<sup>1</sup> and subscript<sub>2</sub> are positioned correctly
+        without disrupting line height.</p>
+
+        <p>The <code>code</code> element is for inline code. Use <kbd>Ctrl</kbd> + <kbd>S</kbd> for keyboard
+        shortcuts. Sample output looks like <samp>this</samp>.</p>
+
+        <address>
+            Jane Smith<br>
+            Portland, OR<br>
+            jane@example.com
+        </address>
+    </section>
+
+
+    <!-- ===== BLOCKQUOTE ===== -->
+
+    <section id="blockquote">
+        <h2>Blockquote</h2>
+
+        <blockquote>
+            <p>Any sufficiently advanced technology is indistinguishable from magic.</p>
+            <footer>Arthur C. Clarke</footer>
+        </blockquote>
+
+        <blockquote>
+            <p>Simplicity is the ultimate sophistication. When you first start off trying to solve a problem,
+            the first solutions you come up with are very complex, and most people stop there. But if you keep
+            going, and live with the problem and peel more layers of the onion off, you can often times arrive
+            at some very elegant and simple solutions.</p>
+            <footer>Steve Jobs</footer>
+        </blockquote>
+    </section>
+
+
+    <!-- ===== LISTS ===== -->
+
+    <section id="lists">
+        <h2>Lists</h2>
+
+        <h3>Unordered List</h3>
+        <ul>
+            <li>First item in the list</li>
+            <li>Second item with more detail to show wrapping behavior when the text is long enough to span
+            multiple lines in the browser window</li>
+            <li>Third item</li>
+        </ul>
+
+        <h3>Ordered List</h3>
+        <ol>
+            <li>Clone the repository</li>
+            <li>Create a brand.css file</li>
+            <li>Import both files into your project</li>
+            <li>Write semantic HTML</li>
+        </ol>
+
+        <h3>Definition List</h3>
+        <dl>
+            <dt>Axe</dt>
+            <dd>A lightweight, semantic-first CSS framework</dd>
+
+            <dt>Brand</dt>
+            <dd>The project-specific color, font, and shape configuration</dd>
+
+            <dt>Semantic HTML</dt>
+            <dd>Using HTML elements for their meaning rather than their appearance</dd>
+        </dl>
+    </section>
+
+
+    <!-- ===== CODE ===== -->
+
+    <section id="code">
+        <h2>Code</h2>
+
+        <p>Inline <code>code</code> gets a subtle background. Code blocks use <code>&lt;pre&gt;</code>:</p>
+
+<pre><code>/* brand.css */
+:root {
+    --color-bg: #ffffff;
+    --color-surface: #f8f9fa;
+    --color-text: #1a1a2e;
+    --color-accent: #1a6b7c;
+    --font-body: system-ui, sans-serif;
+    --radius: 5px;
+}</code></pre>
+    </section>
+
+
+    <!-- ===== HORIZONTAL RULE ===== -->
+
+    <section id="hr">
+        <h2>Horizontal Rule</h2>
+        <p>Content above the rule.</p>
+        <hr>
+        <p>Content below the rule.</p>
+    </section>
+
+
+    <!-- ===== TABLES ===== -->
+
+    <section id="tables">
+        <h2>Tables</h2>
+
+        <table>
+            <caption>CSS Variable Contract</caption>
+            <thead>
+                <tr>
+                    <th>Variable</th>
+                    <th>Purpose</th>
+                    <th>Example</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>--color-bg</code></td>
+                    <td>Page background</td>
+                    <td><span class="swatch" style="background: var(--color-bg)"></span></td>
+                </tr>
+                <tr>
+                    <td><code>--color-surface</code></td>
+                    <td>Card and panel background</td>
+                    <td><span class="swatch" style="background: var(--color-surface)"></span></td>
+                </tr>
+                <tr>
+                    <td><code>--color-text</code></td>
+                    <td>Primary body text</td>
+                    <td><span class="swatch" style="background: var(--color-text)"></span></td>
+                </tr>
+                <tr>
+                    <td><code>--color-text-muted</code></td>
+                    <td>Secondary text</td>
+                    <td><span class="swatch" style="background: var(--color-text-muted)"></span></td>
+                </tr>
+                <tr>
+                    <td><code>--color-border</code></td>
+                    <td>Borders and dividers</td>
+                    <td><span class="swatch" style="background: var(--color-border)"></span></td>
+                </tr>
+                <tr>
+                    <td><code>--color-accent</code></td>
+                    <td>Links, buttons, highlights</td>
+                    <td><span class="swatch" style="background: var(--color-accent)"></span></td>
+                </tr>
+                <tr>
+                    <td><code>--color-accent-hover</code></td>
+                    <td>Accent hover state</td>
+                    <td><span class="swatch" style="background: var(--color-accent-hover)"></span></td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+
+    <!-- ===== FIGURE ===== -->
+
+    <section id="figure">
+        <h2>Figure</h2>
+
+        <figure>
+            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='830' height='236' fill='%231a6b7c'%3E%3Crect width='830' height='236' opacity='0.15'/%3E%3Ctext x='415' y='126' text-anchor='middle' font-family='system-ui' font-size='18' fill='%231a6b7c'%3EWide logo placeholder (830 %C3%97 236)%3C/text%3E%3C/svg%3E" alt="Wide logo placeholder">
+            <figcaption>A figure with a caption. Drop a wide logo or banner image at this ratio (roughly 3.5:1).</figcaption>
+        </figure>
+    </section>
+
+
+    <!-- ===== CARD GRID ===== -->
+
+    <section id="cards">
+        <h2>Card Grid</h2>
+
+        <p>The <code>.grid</code> class creates a responsive auto-fill layout. Cards can be
+        <code>&lt;article&gt;</code> elements (static content) or <code>&lt;a&gt;</code> tags
+        (clickable cards). Both get surface background, border, and hover treatment.</p>
+
+        <div class="grid">
+            <article>
+                <h3>Article Card</h3>
+                <p>A static card using the article element. Good for displaying information
+                that doesn't link anywhere.</p>
+            </article>
+            <article>
+                <h3>Second Card</h3>
+                <p>Cards auto-fill into columns based on available width, with a 300px minimum
+                per column.</p>
+            </article>
+            <a href="#">
+                <h3>Linked Card</h3>
+                <p>An anchor card. The entire surface is clickable. Hover to see the accent
+                border and elevated shadow.</p>
+            </a>
+        </div>
+    </section>
+
+
+    <!-- ===== ASIDE ===== -->
+
+    <section id="aside">
+        <h2>Aside / Callout</h2>
+
+        <aside>
+            <strong>Note:</strong> The aside element renders as a callout with an accent left border.
+            Use it for tips, warnings, or supplementary information that supports the main content
+            without interrupting its flow.
+        </aside>
+    </section>
+
+
+    <!-- ===== DETAILS ===== -->
+
+    <section id="details">
+        <h2>Details / Disclosure</h2>
+
+        <details>
+            <summary>What is Axe?</summary>
+            <p>Axe is a lightweight, semantic-first CSS framework. Write plain HTML and it looks good.
+            No classes required for basic elements.</p>
+        </details>
+
+        <details>
+            <summary>How do I use it?</summary>
+            <p>Create a <code>brand.css</code> with your colors, fonts, and shape preferences. Import it
+            alongside <code>axe.css</code> in your project. Then write semantic HTML.</p>
+        </details>
+
+        <details open>
+            <summary>Can I customize it?</summary>
+            <p>Everything visual is controlled by CSS custom properties in <code>brand.css</code>. The
+            framework never hard-codes colors, fonts, or radii. Use the brand builder tool to generate
+            your brand file.</p>
+        </details>
+    </section>
+
+
+    <!-- ===== FORMS ===== -->
+
+    <section id="forms">
+        <h2>Forms</h2>
+
+        <form onsubmit="return false">
+            <fieldset>
+                <legend>Contact Information</legend>
+
+                <p>
+                    <label for="name">Full Name</label>
+                    <input type="text" id="name" placeholder="Jane Smith">
+                </p>
+
+                <p>
+                    <label for="email">Email</label>
+                    <input type="email" id="email" placeholder="jane@example.com">
+                </p>
+
+                <p>
+                    <label for="subject">Subject</label>
+                    <select id="subject">
+                        <option>General Inquiry</option>
+                        <option>Project Consultation</option>
+                        <option>Partnership</option>
+                        <option>Other</option>
+                    </select>
+                </p>
+
+                <p>
+                    <label for="message">Message</label>
+                    <textarea id="message" placeholder="Tell me about your project..."></textarea>
+                </p>
+
+                <p>
+                    <button type="submit">Send Message</button>
+                </p>
+            </fieldset>
+        </form>
+    </section>
+
+
+    <!-- ===== THEME COLORS ===== -->
+
+    <section id="colors">
+        <h2>Theme Colors</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Swatch</th>
+                    <th>Variable</th>
+                    <th>Role</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="swatch" style="background: var(--color-bg)"></span></td>
+                    <td><code>--color-bg</code></td>
+                    <td>Page background</td>
+                </tr>
+                <tr>
+                    <td><span class="swatch" style="background: var(--color-surface)"></span></td>
+                    <td><code>--color-surface</code></td>
+                    <td>Surface / panel</td>
+                </tr>
+                <tr>
+                    <td><span class="swatch" style="background: var(--color-text)"></span></td>
+                    <td><code>--color-text</code></td>
+                    <td>Primary text</td>
+                </tr>
+                <tr>
+                    <td><span class="swatch" style="background: var(--color-text-muted)"></span></td>
+                    <td><code>--color-text-muted</code></td>
+                    <td>Muted text</td>
+                </tr>
+                <tr>
+                    <td><span class="swatch" style="background: var(--color-accent)"></span></td>
+                    <td><code>--color-accent</code></td>
+                    <td>Accent</td>
+                </tr>
+                <tr>
+                    <td><span class="swatch" style="background: var(--color-accent-hover)"></span></td>
+                    <td><code>--color-accent-hover</code></td>
+                    <td>Accent hover</td>
+                </tr>
+                <tr>
+                    <td><span class="swatch" style="background: var(--color-nav-bg)"></span></td>
+                    <td><code>--color-nav-bg</code></td>
+                    <td>Navigation bar</td>
+                </tr>
+                <tr>
+                    <td><span class="swatch" style="background: var(--color-border)"></span></td>
+                    <td><code>--color-border</code></td>
+                    <td>Borders</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+</article>
+</main>
+
+<footer>
+    <p>Axe v0.2</p>
+</footer>
+
+</body>
+</html>

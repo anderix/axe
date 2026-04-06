@@ -1,0 +1,773 @@
+<!--
+    Axe Universal Viewer
+    Author: David M. Anderson
+    Built with AI assistance (Claude, Anthropic)
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>View</title>
+    <link rel="stylesheet" href="../brand.css">
+    <link rel="stylesheet" href="../axe.css">
+    <script src="../dependencies/marked.min.js"></script>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* Toolbar */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 1.5rem;
+            background: var(--color-surface);
+            border-bottom: 1px solid var(--color-border);
+            font-size: 0.85rem;
+            flex-wrap: wrap;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .toolbar .title {
+            font-weight: 600;
+            color: var(--color-text);
+            margin-right: auto;
+        }
+
+        .toolbar .title a {
+            color: var(--color-accent);
+            text-decoration: none;
+        }
+
+        .toolbar .title a:hover { text-decoration: underline; }
+
+        .toolbar .title .sep {
+            color: var(--color-text-muted);
+            opacity: 0.5;
+            margin: 0 0.25rem;
+        }
+
+        .toolbar select, .toolbar button, .toolbar input {
+            font-size: 0.8rem;
+            padding: 0.3rem 0.5rem;
+            width: auto;
+        }
+
+        .toolbar label {
+            display: inline;
+            font-weight: normal;
+            font-size: 0.8rem;
+            margin: 0;
+            color: var(--color-text-muted);
+        }
+
+        .toolbar .info {
+            color: var(--color-text-muted);
+            font-size: 0.8rem;
+        }
+
+        .toolbar .separator {
+            width: 1px;
+            height: 1.25rem;
+            background: var(--color-border);
+        }
+
+        .theme-toggle {
+            background: none;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius);
+            padding: 0.2rem 0.45rem;
+            cursor: pointer;
+            color: var(--color-text-muted);
+            font-size: 0.8rem;
+            line-height: 1;
+            transition: border-color 0.15s, color 0.15s;
+        }
+
+        .theme-toggle:hover {
+            border-color: var(--color-accent);
+            color: var(--color-accent);
+        }
+
+        /* Content area - override axe constraints */
+        body > main {
+            flex: 1;
+            padding: 0;
+            max-width: 100%;
+        }
+
+        /* --- Directory view --- */
+        .file-list {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        .file-list th {
+            text-align: left;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--color-text-muted);
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .file-list .col-name { width: auto; }
+
+        .file-list .col-size,
+        .file-list .col-date {
+            text-align: right;
+            color: var(--color-text-muted);
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+
+        .file-list .col-size { width: 100px; }
+        .file-list .col-date { width: 140px; }
+
+        .file-list td {
+            padding: 0.6rem 0.75rem;
+            border-bottom: 1px solid var(--color-border);
+            vertical-align: middle;
+        }
+
+        .file-list tbody tr {
+            cursor: default;
+            transition: background 0.1s;
+        }
+
+        .file-list tbody tr:hover {
+            background: color-mix(in srgb, var(--color-border) 40%, transparent);
+        }
+
+        .file-list tbody tr.is-folder { cursor: pointer; }
+
+        .cell-name {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .cell-name a {
+            color: var(--color-text);
+            text-decoration: none;
+        }
+
+        .cell-name a:hover { color: var(--color-accent); }
+
+        .is-folder .cell-name a { font-weight: 500; }
+
+        .icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .icon svg {
+            width: 18px;
+            height: 18px;
+            fill: var(--color-text-muted);
+        }
+
+        .is-folder .icon svg { fill: var(--color-accent); }
+
+        /* --- CSV view --- */
+        .csv-wrap {
+            flex: 1;
+            overflow: auto;
+        }
+
+        .csv-table {
+            font-size: 0.85rem;
+            border-collapse: collapse;
+            table-layout: fixed;
+            width: 100%;
+        }
+
+        .csv-table th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: var(--color-surface);
+            border-bottom: 2px solid var(--color-border);
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+            font-weight: 600;
+            white-space: nowrap;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .csv-table th:hover { color: var(--color-accent); }
+
+        .csv-table th .sort-arrow {
+            font-size: 0.65em;
+            margin-left: 0.3rem;
+            opacity: 0.4;
+        }
+
+        .csv-table th .sort-arrow.active {
+            opacity: 1;
+            color: var(--color-accent);
+        }
+
+        .csv-table td {
+            padding: 0.35rem 0.75rem;
+            border-bottom: 1px solid var(--color-border);
+            white-space: nowrap;
+            max-width: 400px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .csv-table tbody tr:hover {
+            background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+        }
+
+        .csv-table .filter-row th {
+            padding: 0.25rem 0.5rem;
+            border-bottom: 2px solid var(--color-border);
+        }
+
+        .csv-table .filter-row input {
+            font-size: 0.78rem;
+            padding: 0.2rem 0.4rem;
+            width: 100%;
+            min-width: 60px;
+            border: 1px solid var(--color-border);
+            background: var(--color-bg);
+            color: var(--color-text);
+            border-radius: calc(var(--radius) * 0.6);
+        }
+
+        .csv-table .filter-row input:focus {
+            border-color: var(--color-accent);
+            outline: none;
+        }
+
+        .group-header td {
+            background: var(--color-surface);
+            font-weight: 600;
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            user-select: none;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .group-header td:hover { color: var(--color-accent); }
+
+        .group-header .toggle {
+            font-size: 0.65em;
+            margin-right: 0.5rem;
+            display: inline-block;
+            transition: transform 0.15s;
+        }
+
+        .group-header.collapsed .toggle { transform: rotate(-90deg); }
+
+        .group-hidden { display: none; }
+
+        .csv-table .row-num {
+            color: var(--color-text-muted);
+            text-align: right;
+            font-size: 0.75rem;
+            padding-right: 0.5rem;
+            width: 1%;
+            white-space: nowrap;
+            border-right: 1px solid var(--color-border);
+        }
+
+        /* --- Markdown view --- */
+        .md-view {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 2.5rem 1.5rem;
+        }
+
+        /* States */
+        .state-message {
+            text-align: center;
+            color: var(--color-text-muted);
+            padding: 4rem 2rem;
+            font-size: 1rem;
+        }
+
+        .state-message code { font-size: 0.9em; }
+
+        @media (max-width: 600px) {
+            .toolbar { padding: 0.5rem 0.75rem; }
+            .col-date { display: none; }
+            .md-view { padding: 1.5rem 1rem; }
+        }
+    </style>
+    <script>
+        const saved = localStorage.getItem('theme');
+        if (saved) document.documentElement.setAttribute('data-theme', saved);
+    </script>
+</head>
+<body>
+
+<div class="toolbar" id="toolbar" style="display:none">
+    <span class="title" id="title"></span>
+    <span class="info" id="info"></span>
+    <button class="theme-toggle" aria-label="Toggle theme">&#9788;</button>
+</div>
+
+<main>
+    <div id="content"><p class="state-message">Loading...</p></div>
+</main>
+
+<script>
+(function() {
+
+    // --- Theme toggle ---
+    document.querySelector('.theme-toggle').addEventListener('click', () => {
+        const current = document.documentElement.getAttribute('data-theme');
+        const next = current === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('theme', next);
+    });
+
+    // --- URL parameter (always root-relative, no leading slash needed) ---
+    const params = new URLSearchParams(location.search);
+    const urlParam = params.get('url');
+
+    if (!urlParam) {
+        showMessage('No path specified. Use <code>?url=path/to/file</code>');
+        return;
+    }
+
+    const cleanPath = urlParam.replace(/^\//, '').replace(/\/$/, '');
+    const absPath = '/' + cleanPath;
+    const name = cleanPath.split('/').pop() || cleanPath;
+
+    // --- Determine type by extension ---
+    const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
+
+    const renderers = {
+        csv: renderCsv,
+        tsv: renderCsv,
+        md: renderMarkdown,
+        markdown: renderMarkdown
+    };
+
+    if (renderers[ext]) {
+        // It's a file we can render
+        document.title = name + ' - View';
+        fetch(absPath)
+            .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
+            .then(text => renderers[ext](text, ext))
+            .catch(() => showMessage('Could not load <code>' + escHtml(absPath) + '</code>'));
+    } else if (!ext) {
+        // No extension: treat as directory
+        renderDir(cleanPath);
+    } else {
+        // Unknown extension: let the browser handle it directly
+        location.replace(absPath);
+    }
+
+
+    // ==========================================================
+    // Directory Renderer
+    // ==========================================================
+
+    const ICON_FOLDER = '<svg viewBox="0 0 24 24"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>';
+    const ICON_FILE = '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>';
+
+    function renderDir(rootPath) {
+        const rootName = rootPath.split('/').pop() || rootPath;
+
+        showToolbar();
+        document.title = rootName + ' - Files';
+
+        function showToolbar() {
+            document.getElementById('toolbar').style.display = 'flex';
+        }
+
+        function renderBreadcrumbs(subpath) {
+            const el = document.getElementById('title');
+            let html = '<a href="#/">' + escHtml(rootName) + '</a>';
+
+            if (subpath) {
+                const parts = subpath.split('/');
+                let built = '';
+                for (let i = 0; i < parts.length; i++) {
+                    built += (built ? '/' : '') + parts[i];
+                    html += '<span class="sep">/</span>';
+                    if (i === parts.length - 1) {
+                        html += escHtml(parts[i]);
+                    } else {
+                        html += '<a href="#/' + encodeURI(built) + '">' + escHtml(parts[i]) + '</a>';
+                    }
+                }
+            }
+
+            el.innerHTML = html;
+        }
+
+        function renderList(data, subpath) {
+            const el = document.getElementById('content');
+            const infoEl = document.getElementById('info');
+
+            if (!data.items || data.items.length === 0) {
+                el.innerHTML = '<p class="state-message">This folder is empty.</p>';
+                infoEl.textContent = '0 items';
+                return;
+            }
+
+            const folders = data.items.filter(i => i.type === 'folder').length;
+            const files = data.items.length - folders;
+            const parts = [];
+            if (folders) parts.push(folders + (folders === 1 ? ' folder' : ' folders'));
+            if (files) parts.push(files + (files === 1 ? ' file' : ' files'));
+            infoEl.textContent = parts.join(', ');
+
+            let html = '<table class="file-list"><thead><tr>';
+            html += '<th class="col-name">Name</th>';
+            html += '<th class="col-size">Size</th>';
+            html += '<th class="col-date">Modified</th>';
+            html += '</tr></thead><tbody>';
+
+            for (const item of data.items) {
+                const isFolder = item.type === 'folder';
+                const icon = isFolder ? ICON_FOLDER : ICON_FILE;
+                const itemPath = subpath ? subpath + '/' + item.name : item.name;
+                const fullPath = rootPath + '/' + itemPath;
+
+                let nameHtml, rowAttr;
+
+                if (isFolder) {
+                    nameHtml = '<a href="#/' + encodeURI(itemPath) + '">' + escHtml(item.name) + '</a>';
+                    rowAttr = ' class="is-folder" onclick="location.hash=\'#/' + encodeURI(itemPath) + '\'"';
+                } else {
+                    nameHtml = '<a href="?url=' + encodeURIComponent(fullPath) + '">' + escHtml(item.name) + '</a>';
+                    rowAttr = '';
+                }
+
+                html += '<tr' + rowAttr + '>';
+                html += '<td><div class="cell-name"><span class="icon">' + icon + '</span>' + nameHtml + '</div></td>';
+                html += '<td class="col-size">' + (isFolder ? '\u2014' : formatSize(item.size)) + '</td>';
+                html += '<td class="col-date">' + formatDate(item.modified) + '</td>';
+                html += '</tr>';
+            }
+
+            html += '</tbody></table>';
+            el.innerHTML = html;
+        }
+
+        function loadDir(subpath) {
+            renderBreadcrumbs(subpath);
+            document.getElementById('content').innerHTML = '<p class="state-message">Loading...</p>';
+
+            const dirPath = subpath ? rootPath + '/' + subpath : rootPath;
+            fetch('list.php?url=' + encodeURIComponent(dirPath))
+                .then(r => { if (!r.ok) throw new Error('Not found'); return r.json(); })
+                .then(data => {
+                    document.title = (subpath ? subpath.split('/').pop() : rootName) + ' - Files';
+                    renderList(data, subpath);
+                })
+                .catch(() => {
+                    document.getElementById('content').innerHTML = '<p class="state-message">Could not load this directory.</p>';
+                });
+        }
+
+        function onHashChange() {
+            const hash = decodeURIComponent(location.hash.slice(2) || '');
+            loadDir(hash);
+        }
+
+        window.addEventListener('hashchange', onHashChange);
+        onHashChange();
+    }
+
+
+    // ==========================================================
+    // CSV Renderer
+    // ==========================================================
+
+    function renderCsv(text, ext) {
+        const delim = ext === 'tsv' ? '\t' : ',';
+        const rows = parseCsv(text, delim);
+        if (rows.length < 2) {
+            showMessage('File is empty or has no data rows.');
+            return;
+        }
+
+        const headers = rows[0];
+        const data = rows.slice(1);
+
+        let sortCol = -1;
+        let sortDir = 0;
+        let groupCol = -1;
+        let filters = new Array(headers.length).fill('');
+        let collapsedGroups = new Set();
+
+        // Toolbar
+        const toolbar = document.getElementById('toolbar');
+        toolbar.style.display = 'flex';
+        document.getElementById('title').textContent = name;
+
+        const sep1 = el('span', 'separator');
+        const groupLabel = el('label');
+        groupLabel.textContent = 'Group by:';
+        const groupSelect = el('select');
+        groupSelect.innerHTML = '<option value="-1">None</option>' +
+            headers.map((h, i) => '<option value="' + i + '">' + escHtml(h) + '</option>').join('');
+        groupSelect.addEventListener('change', () => {
+            groupCol = parseInt(groupSelect.value);
+            collapsedGroups.clear();
+            render();
+        });
+
+        const sep2 = el('span', 'separator');
+        const copyBtn = el('button');
+        copyBtn.textContent = 'Copy filtered';
+        copyBtn.addEventListener('click', copyFiltered);
+
+        const sep3 = el('span', 'separator');
+        const rowCount = el('span', 'info');
+
+        // Insert before the theme toggle
+        const toggle = toolbar.querySelector('.theme-toggle');
+        toolbar.insertBefore(sep1, toggle);
+        toolbar.insertBefore(groupLabel, toggle);
+        toolbar.insertBefore(groupSelect, toggle);
+        toolbar.insertBefore(sep2, toggle);
+        toolbar.insertBefore(copyBtn, toggle);
+        toolbar.insertBefore(sep3, toggle);
+        toolbar.insertBefore(rowCount, toggle);
+
+        const content = document.getElementById('content');
+        content.innerHTML = '';
+        content.className = 'csv-wrap';
+
+        const table = document.createElement('table');
+        table.className = 'csv-table';
+        content.appendChild(table);
+
+        render();
+
+        function getFilteredData() {
+            return data.filter(row => filters.every((f, i) => {
+                if (!f) return true;
+                return (row[i] || '').toLowerCase().includes(f.toLowerCase());
+            }));
+        }
+
+        function render() {
+            const filtered = getFilteredData();
+
+            let sorted = filtered;
+            if (sortCol >= 0 && sortDir > 0) {
+                sorted = [...filtered].sort((a, b) => {
+                    let va = a[sortCol] || '', vb = b[sortCol] || '';
+                    const na = parseFloat(va.replace(/[,$%]/g, ''));
+                    const nb = parseFloat(vb.replace(/[,$%]/g, ''));
+                    if (!isNaN(na) && !isNaN(nb)) return sortDir === 1 ? na - nb : nb - na;
+                    va = va.toLowerCase(); vb = vb.toLowerCase();
+                    if (va < vb) return sortDir === 1 ? -1 : 1;
+                    if (va > vb) return sortDir === 1 ? 1 : -1;
+                    return 0;
+                });
+            }
+
+            let html = '<thead><tr><th class="row-num">#</th>';
+            headers.forEach((h, i) => {
+                const arrow = sortCol === i
+                    ? (sortDir === 1 ? '<span class="sort-arrow active">\u25b2</span>'
+                        : sortDir === 2 ? '<span class="sort-arrow active">\u25bc</span>'
+                        : '<span class="sort-arrow">\u25b2</span>')
+                    : '<span class="sort-arrow">\u25b2</span>';
+                html += '<th data-col="' + i + '">' + escHtml(h) + arrow + '</th>';
+            });
+            html += '</tr><tr class="filter-row"><th class="row-num"></th>';
+            headers.forEach((h, i) => {
+                html += '<th><input type="text" placeholder="Filter..." data-filter="' + i + '" value="' + escHtml(filters[i]) + '"></th>';
+            });
+            html += '</tr></thead><tbody>';
+
+            let visibleCount = 0;
+            if (groupCol >= 0) {
+                const groups = new Map();
+                sorted.forEach(row => {
+                    const key = row[groupCol] || '(empty)';
+                    if (!groups.has(key)) groups.set(key, []);
+                    groups.get(key).push(row);
+                });
+
+                groups.forEach((rows, key) => {
+                    const collapsed = collapsedGroups.has(key);
+                    html += '<tr class="group-header' + (collapsed ? ' collapsed' : '') + '" data-group="' + escAttr(key) + '">';
+                    html += '<td colspan="' + (headers.length + 1) + '"><span class="toggle">\u25bc</span>' + escHtml(key) + ' (' + rows.length + ')</td></tr>';
+                    rows.forEach(row => {
+                        visibleCount++;
+                        html += '<tr class="' + (collapsed ? 'group-hidden' : '') + '" data-group-row="' + escAttr(key) + '">';
+                        html += '<td class="row-num">' + visibleCount + '</td>';
+                        row.forEach(cell => html += '<td title="' + escAttr(cell) + '">' + escHtml(cell) + '</td>');
+                        html += '</tr>';
+                    });
+                });
+            } else {
+                sorted.forEach(row => {
+                    visibleCount++;
+                    html += '<tr><td class="row-num">' + visibleCount + '</td>';
+                    row.forEach(cell => html += '<td title="' + escAttr(cell) + '">' + escHtml(cell) + '</td>');
+                    html += '</tr>';
+                });
+            }
+
+            html += '</tbody>';
+            table.innerHTML = html;
+            rowCount.textContent = visibleCount + ' of ' + data.length + ' rows';
+
+            table.querySelectorAll('th[data-col]').forEach(th => {
+                th.addEventListener('click', () => {
+                    const col = parseInt(th.dataset.col);
+                    if (sortCol === col) { sortDir = (sortDir + 1) % 3; if (sortDir === 0) sortCol = -1; }
+                    else { sortCol = col; sortDir = 1; }
+                    render();
+                });
+            });
+
+            table.querySelectorAll('input[data-filter]').forEach(inp => {
+                inp.addEventListener('input', () => {
+                    filters[parseInt(inp.dataset.filter)] = inp.value;
+                    render();
+                    const newInp = table.querySelector('input[data-filter="' + inp.dataset.filter + '"]');
+                    if (newInp) { newInp.focus(); newInp.selectionStart = newInp.selectionEnd = newInp.value.length; }
+                });
+            });
+
+            table.querySelectorAll('.group-header').forEach(tr => {
+                tr.addEventListener('click', () => {
+                    const key = tr.dataset.group;
+                    collapsedGroups.has(key) ? collapsedGroups.delete(key) : collapsedGroups.add(key);
+                    render();
+                });
+            });
+        }
+
+        function copyFiltered() {
+            const filtered = getFilteredData();
+            let sorted = filtered;
+            if (sortCol >= 0 && sortDir > 0) {
+                sorted = [...filtered].sort((a, b) => {
+                    let va = a[sortCol] || '', vb = b[sortCol] || '';
+                    const na = parseFloat(va.replace(/[,$%]/g, ''));
+                    const nb = parseFloat(vb.replace(/[,$%]/g, ''));
+                    if (!isNaN(na) && !isNaN(nb)) return sortDir === 1 ? na - nb : nb - na;
+                    va = va.toLowerCase(); vb = vb.toLowerCase();
+                    if (va < vb) return sortDir === 1 ? -1 : 1;
+                    if (va > vb) return sortDir === 1 ? 1 : -1;
+                    return 0;
+                });
+            }
+            const lines = [headers.join(',')];
+            sorted.forEach(row => {
+                lines.push(row.map(cell => {
+                    if (cell.includes(',') || cell.includes('"') || cell.includes('\n'))
+                        return '"' + cell.replace(/"/g, '""') + '"';
+                    return cell;
+                }).join(','));
+            });
+            navigator.clipboard.writeText(lines.join('\n')).then(() => {
+                copyBtn.textContent = 'Copied!';
+                setTimeout(() => copyBtn.textContent = 'Copy filtered', 1500);
+            });
+        }
+    }
+
+
+    // ==========================================================
+    // CSV Parser
+    // ==========================================================
+
+    function parseCsv(text, delim) {
+        const rows = [];
+        let row = [], cell = '', inQuotes = false, i = 0;
+
+        while (i < text.length) {
+            const ch = text[i];
+            if (inQuotes) {
+                if (ch === '"') {
+                    if (text[i + 1] === '"') { cell += '"'; i += 2; }
+                    else { inQuotes = false; i++; }
+                } else { cell += ch; i++; }
+            } else {
+                if (ch === '"') { inQuotes = true; i++; }
+                else if (ch === delim) { row.push(cell); cell = ''; i++; }
+                else if (ch === '\r') { row.push(cell); cell = ''; rows.push(row); row = []; i++; if (text[i] === '\n') i++; }
+                else if (ch === '\n') { row.push(cell); cell = ''; rows.push(row); row = []; i++; }
+                else { cell += ch; i++; }
+            }
+        }
+        if (cell || row.length > 0) { row.push(cell); rows.push(row); }
+
+        const maxCols = Math.max(...rows.map(r => r.length));
+        rows.forEach(r => { while (r.length < maxCols) r.push(''); });
+        return rows;
+    }
+
+
+    // ==========================================================
+    // Markdown Renderer
+    // ==========================================================
+
+    function renderMarkdown(text) {
+        document.getElementById('toolbar').style.display = 'flex';
+        document.getElementById('title').textContent = name;
+
+        const content = document.getElementById('content');
+        content.className = 'md-view';
+        content.innerHTML = marked.parse(text);
+    }
+
+
+    // ==========================================================
+    // Utilities
+    // ==========================================================
+
+    function showMessage(html) {
+        document.getElementById('content').innerHTML = '<p class="state-message">' + html + '</p>';
+    }
+
+    function escHtml(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+    function escAttr(s) { return (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;'); }
+
+    function el(tag, cls) {
+        const e = document.createElement(tag);
+        if (cls) e.className = cls;
+        return e;
+    }
+
+    function formatSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const units = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(1024));
+        const size = bytes / Math.pow(1024, i);
+        return (i === 0 ? size : size.toFixed(1)) + ' ' + units[i];
+    }
+
+    function formatDate(ts) {
+        const d = new Date(ts * 1000);
+        const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        return m[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+    }
+
+})();
+</script>
+
+</body>
+</html>
