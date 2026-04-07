@@ -340,7 +340,7 @@
         localStorage.setItem('theme', next);
     });
 
-    // --- URL parameter (always root-relative, no leading slash needed) ---
+    // --- URL parameter ---
     const params = new URLSearchParams(location.search);
     const urlParam = params.get('url');
 
@@ -349,8 +349,10 @@
         return;
     }
 
-    const cleanPath = urlParam.replace(/^\//, '').replace(/\/$/, '');
-    const absPath = '/' + cleanPath;
+    // External URL (http/https) or root-relative path
+    const isExternal = /^https?:\/\//i.test(urlParam);
+    const fetchUrl = isExternal ? urlParam : '/' + urlParam.replace(/^\//, '').replace(/\/$/, '');
+    const cleanPath = isExternal ? urlParam.replace(/^https?:\/\/[^/]+\/?/, '') : urlParam.replace(/^\//, '').replace(/\/$/, '');
     const name = cleanPath.split('/').pop() || cleanPath;
 
     // --- Determine type by extension ---
@@ -366,16 +368,23 @@
     if (renderers[ext]) {
         // It's a file we can render
         document.title = name + ' - View';
-        fetch(absPath)
+        fetch(fetchUrl)
             .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
             .then(text => renderers[ext](text, ext))
-            .catch(() => showMessage('Could not load <code>' + escHtml(absPath) + '</code>'));
-    } else if (!ext) {
-        // No extension: treat as directory
+            .catch(() => showMessage('Could not load <code>' + escHtml(fetchUrl) + '</code>'));
+    } else if (!ext && !isExternal) {
+        // No extension and local: treat as directory
         renderDir(cleanPath);
+    } else if (!ext && isExternal) {
+        // No extension but external: try as CSV (common for API endpoints)
+        document.title = name + ' - View';
+        fetch(fetchUrl)
+            .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
+            .then(text => renderCsv(text, 'csv'))
+            .catch(() => showMessage('Could not load <code>' + escHtml(fetchUrl) + '</code>'));
     } else {
         // Unknown extension: let the browser handle it directly
-        location.replace(absPath);
+        location.replace(fetchUrl);
     }
 
 
