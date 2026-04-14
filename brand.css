@@ -16,6 +16,8 @@
     --color-border:       #d8dfe3;
     --color-accent:       #1a6b7c;
     --color-accent-hover: #135768;
+    --color-highlight:       #d98c1f;
+    --color-highlight-hover: #b8751a;
     --color-nav-bg:       #1e2a35;
     --color-nav-text:     #edf0f2;
 
@@ -43,6 +45,8 @@
         --color-border:       #1e2a35;
         --color-accent:       #38b8cc;
         --color-accent-hover: #4cc8dc;
+        --color-highlight:       #f0a030;
+        --color-highlight-hover: #ffb44a;
         --color-nav-bg:       #080d12;
         --color-nav-text:     #dce3e8;
         --shadow:             0 1px 3px rgba(0, 0, 0, 0.4);
@@ -59,6 +63,8 @@
     --color-border:       #1e2a35;
     --color-accent:       #38b8cc;
     --color-accent-hover: #4cc8dc;
+    --color-highlight:       #f0a030;
+    --color-highlight-hover: #ffb44a;
     --color-nav-bg:       #080d12;
     --color-nav-text:     #dce3e8;
     --shadow:             0 1px 3px rgba(0, 0, 0, 0.4);
@@ -74,6 +80,8 @@
     --color-border:       #d8dfe3;
     --color-accent:       #1a6b7c;
     --color-accent-hover: #135768;
+    --color-highlight:       #d98c1f;
+    --color-highlight-hover: #b8751a;
     --color-nav-bg:       #1e2a35;
     --color-nav-text:     #edf0f2;
     --shadow:             0 1px 3px rgba(0, 0, 0, 0.09);

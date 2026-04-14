@@ -194,7 +194,7 @@ small {
 }
 
 mark {
-    background: color-mix(in srgb, var(--color-accent) 25%, transparent);
+    background: color-mix(in srgb, var(--color-highlight, var(--color-accent)) 35%, transparent);
     color: inherit;
     padding: 0.1em 0.25em;
     border-radius: calc(var(--radius) * 0.4);
