@@ -234,6 +234,26 @@
             display: contents;
         }
 
+        /* Copy toast */
+        #toast {
+            position: fixed;
+            bottom: calc(var(--output-height) + 12px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--chrome-accent);
+            color: #0d1117;
+            padding: 0.4rem 0.875rem;
+            border-radius: var(--chrome-radius);
+            font-size: 0.75rem;
+            font-weight: 700;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s;
+            z-index: 100;
+        }
+
+        #toast.visible { opacity: 1; }
+
         /* Preview area */
         #preview {
             display: grid;
@@ -280,6 +300,48 @@
             font-size: 14px;
         }
 
+        /* Palette strip — shows generated tints/shades in context */
+        .pv-palette {
+            padding: 0.6rem 1rem 0.75rem;
+            background: var(--color-surface);
+            border-bottom: 1px solid var(--color-border);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .pv-palette-label {
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--color-text-muted);
+            margin-bottom: 0.25rem;
+        }
+
+        .pv-palette-row {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.2rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .pv-palette-row:last-child { margin-bottom: 0; }
+
+        .pv-swatch {
+            aspect-ratio: 3 / 1;
+            border-radius: 2px;
+            cursor: pointer;
+            border: 1px solid rgba(0,0,0,0.08);
+            transition: transform 0.1s;
+        }
+
+        .pv-swatch:hover { transform: scale(1.05); }
+
+        .pv-swatch.core {
+            border: 2px solid var(--color-text);
+        }
+
         .pv-nav {
             background: var(--color-nav-bg);
             display: flex;
@@ -287,8 +349,6 @@
             padding: 0 1.25rem;
             height: 48px;
             gap: 0.125rem;
-            position: sticky;
-            top: 0;
         }
 
         .pv-nav-brand {
@@ -340,6 +400,13 @@
             color: var(--color-text);
             margin-bottom: 0.875rem;
             line-height: 1.65;
+        }
+
+        .pv-main p mark {
+            background: var(--color-highlight);
+            color: var(--color-text);
+            padding: 0.05rem 0.25rem;
+            border-radius: 2px;
         }
 
         .pv-main a {
@@ -466,13 +533,13 @@
             <h2>Colors</h2>
             <div class="ctrl-row">
                 <span class="ctrl-label">Primary</span>
-                <input type="color" id="color-primary" value="#0d7a8f">
-                <input type="text"  id="hex-primary"   value="#0d7a8f" maxlength="7">
+                <input type="color" id="color-primary" value="#0d2d5b">
+                <input type="text"  id="hex-primary"   value="#0d2d5b" maxlength="7">
             </div>
             <div class="ctrl-row">
                 <span class="ctrl-label">Secondary</span>
-                <input type="color" id="color-secondary" value="#2c2c2c">
-                <input type="text"  id="hex-secondary"   value="#2c2c2c" maxlength="7">
+                <input type="color" id="color-secondary" value="#00ADEE">
+                <input type="text"  id="hex-secondary"   value="#00ADEE" maxlength="7">
             </div>
         </div>
 
@@ -567,10 +634,12 @@
         <pre id="css-output"></pre>
     </div>
 
+    <div id="toast">Copied</div>
+
     <script>
-    // --------------------------------------------------------
+    // ========================================================
     // Color utilities
-    // --------------------------------------------------------
+    // ========================================================
 
     function hexToRgb(hex) {
         const h = hex.replace('#', '');
@@ -595,7 +664,7 @@
                 case b: h = ((r - g) / d + 4) / 6; break;
             }
         }
-        return [Math.round(h * 360), Math.round(s * 100), Math.round(l * 100)];
+        return [h * 360, s * 100, l * 100];
     }
 
     function hslToHex(h, s, l) {
@@ -611,83 +680,141 @@
         return `#${f(0)}${f(8)}${f(4)}`;
     }
 
+    function hexToHsl(hex) {
+        const [r, g, b] = hexToRgb(hex);
+        return rgbToHsl(r, g, b);
+    }
+
     function isValidHex(s) {
         return /^#[0-9a-fA-F]{6}$/.test(s);
     }
 
-    // --------------------------------------------------------
-    // Palette generation
-    // Takes two hex colors, returns light + dark token sets.
-    // Primary hue tints the neutrals for cohesion.
-    // --------------------------------------------------------
+    // ========================================================
+    // Tint and shade generation (RGB mixing with white / black)
+    //   tint(k):  mix toward white  — higher k = lighter
+    //   shade(k): mix toward black  — higher k = darker
+    // RGB mix (not HSL) gives proper tints that desaturate as
+    // they lighten, matching traditional design expectations
+    // and producing better UI-functional neutrals.
+    // ========================================================
 
-    function generatePalette(primaryHex, secondaryHex) {
-        const [pr, pg, pb] = hexToRgb(primaryHex);
-        const [ph, ps, pl] = rgbToHsl(pr, pg, pb);
+    const TINT_STOPS  = [0.3, 0.6, 0.85];   // tint-1, tint-2, tint-3
+    const SHADE_STOPS = [0.3, 0.6, 0.85];   // shade-1, shade-2, shade-3
 
-        const [sr, sg, sb] = hexToRgb(secondaryHex);
-        const [sh, ss, sl] = rgbToHsl(sr, sg, sb);
+    function mix(hex, targetR, targetG, targetB, k) {
+        const [r, g, b] = hexToRgb(hex);
+        const nr = Math.round(r + (targetR - r) * k);
+        const ng = Math.round(g + (targetG - g) * k);
+        const nb = Math.round(b + (targetB - b) * k);
+        return '#' + [nr, ng, nb].map(v => v.toString(16).padStart(2, '0')).join('');
+    }
 
-        // Neutral tints use primary hue at very low saturation for cohesion
-        const bgSat = Math.min(ps * 0.11, 11);
+    function tintHex(hex, k)  { return mix(hex, 255, 255, 255, k); }
+    function shadeHex(hex, k) { return mix(hex,   0,   0,   0, k); }
 
-        // Nav text: white on dark secondary, dark on light secondary
-        const navText = sl > 55
-            ? hslToHex(sh, Math.min(ss * 0.3, 18), 12)
-            : hslToHex(0, 0, 93);
-
-        // Dark mode accent: lighten primary to stay visible on dark surfaces
-        const darkAccentL = Math.max(Math.min(pl + 22, 68), 52);
-
+    function ramp(hex) {
         return {
-            light: {
-                '--color-bg':           hslToHex(ph, bgSat, 96),
-                '--color-surface':      hslToHex(ph, Math.max(bgSat * 0.4, 0), 100),
-                '--color-text':         hslToHex(ph, Math.min(ps * 0.18, 16), 11),
-                '--color-text-muted':   hslToHex(ph, Math.min(ps * 0.14, 13), 42),
-                '--color-border':       hslToHex(ph, bgSat, 87),
-                '--color-accent':       primaryHex,
-                '--color-accent-hover': hslToHex(ph, ps, Math.max(pl - 9, 12)),
-                '--color-nav-bg':       secondaryHex,
-                '--color-nav-text':     navText,
-            },
-            dark: {
-                '--color-bg':           hslToHex(ph, Math.min(ps * 0.22, 18), 7),
-                '--color-surface':      hslToHex(ph, Math.min(ps * 0.18, 15), 11),
-                '--color-text':         hslToHex(ph, Math.min(ps * 0.07, 7), 91),
-                '--color-text-muted':   hslToHex(ph, Math.min(ps * 0.09, 9), 57),
-                '--color-border':       hslToHex(ph, Math.min(ps * 0.2, 16), 19),
-                '--color-accent':       hslToHex(ph, Math.min(ps * 0.85, 72), darkAccentL),
-                '--color-accent-hover': hslToHex(ph, Math.min(ps * 0.85, 72), Math.min(darkAccentL + 10, 78)),
-                '--color-nav-bg':       hslToHex(sh, Math.min(ss * 0.28, 15), 7),
-                '--color-nav-text':     hslToHex(0, 0, 88),
-            }
+            raw:    hex,
+            tints:  TINT_STOPS.map(k => tintHex(hex, k)),
+            shades: SHADE_STOPS.map(k => shadeHex(hex, k)),
         };
     }
 
-    // --------------------------------------------------------
-    // Shadow values
-    // --------------------------------------------------------
+    // ========================================================
+    // Palette generation
+    //   Takes primary + secondary, produces:
+    //     - Extended palette (primary ramp, secondary ramp)
+    //     - Required Axe contract vars (light + dark)
+    // Primary hue tints the neutrals for cohesion.
+    // Nav bg derives automatically from primary.
+    // ========================================================
+
+    function generatePalette(primaryHex, secondaryHex) {
+        const primary   = ramp(primaryHex);
+        const secondary = ramp(secondaryHex);
+
+        const [ph, ps] = hexToHsl(primaryHex);
+        const bgSat = Math.min(ps * 0.1, 10);
+
+        // Nav derivation
+        const navBgLight = shadeHex(primaryHex, 0.5);   // dark navy
+        const [nbh, nbs, nbl] = hexToHsl(navBgLight);
+        const navTextLight = nbl < 55 ? hslToHex(0, 0, 95) : hslToHex(ph, bgSat, 15);
+
+        const navBgDark = shadeHex(primaryHex, 0.85);   // nearly black
+        const navTextDark = hslToHex(0, 0, 92);
+
+        const extended = {
+            '--primary':          primary.raw,
+            '--primary-tint-1':   primary.tints[0],
+            '--primary-tint-2':   primary.tints[1],
+            '--primary-tint-3':   primary.tints[2],
+            '--primary-shade-1':  primary.shades[0],
+            '--primary-shade-2':  primary.shades[1],
+            '--primary-shade-3':  primary.shades[2],
+            '--secondary':        secondary.raw,
+            '--secondary-tint-1': secondary.tints[0],
+            '--secondary-tint-2': secondary.tints[1],
+            '--secondary-tint-3': secondary.tints[2],
+            '--secondary-shade-1':secondary.shades[0],
+            '--secondary-shade-2':secondary.shades[1],
+            '--secondary-shade-3':secondary.shades[2],
+        };
+
+        const light = {
+            '--color-bg':            hslToHex(ph, bgSat, 97),
+            '--color-surface':       '#ffffff',
+            '--color-text':          hslToHex(ph, Math.min(ps * 0.18, 16), 12),
+            '--color-text-muted':    hslToHex(ph, Math.min(ps * 0.12, 12), 42),
+            '--color-border':        hslToHex(ph, bgSat, 88),
+            '--color-accent':        primary.raw,
+            '--color-accent-hover':  primary.shades[0],
+            '--color-highlight':     secondary.raw,
+            '--color-highlight-hover': secondary.shades[0],
+            '--color-nav-bg':        navBgLight,
+            '--color-nav-text':      navTextLight,
+        };
+
+        const dark = {
+            '--color-bg':            hslToHex(ph, Math.min(ps * 0.2, 15), 8),
+            '--color-surface':       hslToHex(ph, Math.min(ps * 0.16, 13), 13),
+            '--color-text':          hslToHex(ph, Math.min(ps * 0.06, 6), 92),
+            '--color-text-muted':    hslToHex(ph, Math.min(ps * 0.08, 8), 60),
+            '--color-border':        hslToHex(ph, Math.min(ps * 0.2, 15), 22),
+            '--color-accent':        primary.tints[0],
+            '--color-accent-hover':  primary.tints[1],
+            '--color-highlight':     secondary.tints[0],
+            '--color-highlight-hover': secondary.tints[1],
+            '--color-nav-bg':        navBgDark,
+            '--color-nav-text':      navTextDark,
+        };
+
+        return { primary, secondary, extended, light, dark };
+    }
+
+    // ========================================================
+    // Shadows
+    // ========================================================
 
     const SHADOWS = {
-        none:     { sm: 'none',                            md: 'none' },
+        none:     { sm: 'none',                           md: 'none' },
         subtle:   { sm: '0 1px 3px rgba(0,0,0,0.09)',    md: '0 4px 12px rgba(0,0,0,0.11)' },
         elevated: { sm: '0 2px 8px rgba(0,0,0,0.16)',    md: '0 8px 24px rgba(0,0,0,0.2)' },
     };
 
     const SHADOWS_DARK = {
-        none:     { sm: 'none',                            md: 'none' },
+        none:     { sm: 'none',                           md: 'none' },
         subtle:   { sm: '0 1px 3px rgba(0,0,0,0.4)',     md: '0 4px 12px rgba(0,0,0,0.5)' },
         elevated: { sm: '0 2px 8px rgba(0,0,0,0.55)',    md: '0 8px 24px rgba(0,0,0,0.65)' },
     };
 
-    // --------------------------------------------------------
+    // ========================================================
     // State
-    // --------------------------------------------------------
+    // ========================================================
 
     const state = {
-        primary:          '#0d7a8f',
-        secondary:        '#2c2c2c',
+        primary:          '#0d2d5b',
+        secondary:        '#00ADEE',
         fontBody:         'system-ui, Arial, Helvetica, sans-serif',
         fontBodyUrl:      '',
         fontBodyName:     '',
@@ -698,9 +825,9 @@
         shadow:           'subtle',
     };
 
-    // --------------------------------------------------------
+    // ========================================================
     // Resolve effective font values
-    // --------------------------------------------------------
+    // ========================================================
 
     function getFonts() {
         const body = state.fontBody === 'custom'
@@ -716,11 +843,43 @@
         return { body, heading };
     }
 
-    // --------------------------------------------------------
+    // ========================================================
     // Preview HTML template
-    // --------------------------------------------------------
+    // ========================================================
 
-    function previewHTML() {
+    function paletteStripHTML(palette) {
+        const swatch = (hex, label, isCore) =>
+            `<div class="pv-swatch${isCore ? ' core' : ''}" style="background:${hex}" title="${label} · ${hex}" data-hex="${hex}"></div>`;
+
+        const primaryRow = [
+            swatch(palette.primary.tints[2], 'primary-tint-3'),
+            swatch(palette.primary.tints[1], 'primary-tint-2'),
+            swatch(palette.primary.tints[0], 'primary-tint-1'),
+            swatch(palette.primary.raw,      'primary', true),
+            swatch(palette.primary.shades[0], 'primary-shade-1'),
+            swatch(palette.primary.shades[1], 'primary-shade-2'),
+            swatch(palette.primary.shades[2], 'primary-shade-3'),
+        ].join('');
+
+        const secondaryRow = [
+            swatch(palette.secondary.tints[2], 'secondary-tint-3'),
+            swatch(palette.secondary.tints[1], 'secondary-tint-2'),
+            swatch(palette.secondary.tints[0], 'secondary-tint-1'),
+            swatch(palette.secondary.raw,      'secondary', true),
+            swatch(palette.secondary.shades[0], 'secondary-shade-1'),
+            swatch(palette.secondary.shades[1], 'secondary-shade-2'),
+            swatch(palette.secondary.shades[2], 'secondary-shade-3'),
+        ].join('');
+
+        return `
+<div class="pv-palette">
+    <div class="pv-palette-label">Extended palette · click to copy</div>
+    <div class="pv-palette-row">${primaryRow}</div>
+    <div class="pv-palette-row">${secondaryRow}</div>
+</div>`;
+    }
+
+    function previewBodyHTML() {
         return `
 <nav class="pv-nav">
     <a class="pv-nav-brand" href="#">Your Brand</a>
@@ -731,10 +890,10 @@
 <div class="pv-main">
     <h1>Write plain HTML. It looks good.</h1>
     <h2>Preview your brand colors, fonts, and shapes in context.</h2>
-    <p>Body copy reads cleanly at this size. Here is <a href="#">a link</a> in context with the paragraph text. Line height and spacing feel balanced across devices and screen sizes.</p>
+    <p>Body copy reads cleanly. Here is <a href="#">a link</a> and <mark>a highlighted phrase</mark> in context. Line height and spacing feel balanced across devices.</p>
     <a class="pv-btn" href="#">Get in touch</a>
     <aside class="pv-aside">
-        This is a callout block. It uses the accent color on the left border and sits slightly elevated from the main content.
+        Callout block using the accent color on the left border and a subtle elevation.
     </aside>
     <div class="pv-card">
         <div class="pv-card-title">Surface card</div>
@@ -744,13 +903,16 @@
 <footer class="pv-footer">&copy; 2026 Acme &nbsp;&middot;&nbsp; contact@example.com</footer>`;
     }
 
-    // --------------------------------------------------------
+    // ========================================================
     // Apply variables to a pane element
-    // --------------------------------------------------------
+    // ========================================================
 
-    function applyPane(pane, vars, fonts, radius, shadowKey, isDark) {
-        const shad = isDark ? SHADOWS_DARK : SHADOWS;
-        Object.entries(vars).forEach(([k, v]) => pane.style.setProperty(k, v));
+    function applyPane(pane, palette, mode, fonts, radius, shadowKey) {
+        const contract = palette[mode];
+        const shad = mode === 'dark' ? SHADOWS_DARK : SHADOWS;
+
+        Object.entries(contract).forEach(([k, v]) => pane.style.setProperty(k, v));
+        Object.entries(palette.extended).forEach(([k, v]) => pane.style.setProperty(k, v));
         pane.style.setProperty('--font-body',    fonts.body);
         pane.style.setProperty('--font-heading', fonts.heading);
         pane.style.setProperty('--radius',       radius + 'px');
@@ -758,9 +920,21 @@
         pane.style.setProperty('--shadow-md',    shad[shadowKey].md);
     }
 
-    // --------------------------------------------------------
+    // ========================================================
     // Generate brand.css output
-    // --------------------------------------------------------
+    //   Structure:
+    //     :root — extended palette (theme-independent)
+    //           + required contract (light mode)
+    //           + typography + radius + shadow (light)
+    //     @media (prefers-color-scheme: dark) :root:not([data-theme="light"]) — dark overrides
+    //     [data-theme="dark"]  — manual dark override
+    //     [data-theme="light"] — manual light override (restores light)
+    // ========================================================
+
+    function fmtVars(vars, indent) {
+        const pad = ' '.repeat(indent);
+        return Object.entries(vars).map(([k, v]) => `${pad}${k}: ${v};`).join('\n');
+    }
 
     function generateCSS(palette, fonts, radius, shadowKey) {
         const imports = [];
@@ -777,11 +951,6 @@
             ? 'var(--font-body)'
             : fonts.heading;
 
-        const lightVars = Object.entries(palette.light)
-            .map(([k, v]) => `    ${k}: ${v};`).join('\n');
-        const darkVars = Object.entries(palette.dark)
-            .map(([k, v]) => `    ${k}: ${v};`).join('\n');
-
         const importBlock = imports.length ? imports.join('\n') + '\n\n' : '';
 
         return `${importBlock}/*
@@ -790,19 +959,22 @@
  */
 
 :root {
-    /* Colors — Light */
-${lightVars}
+    /* ---- Extended palette (theme-independent) ---------------- */
+${fmtVars(palette.extended, 4)}
 
-    /* Typography */
+    /* ---- Required contract — Light mode ---------------------- */
+${fmtVars(palette.light, 4)}
+
+    /* ---- Typography ------------------------------------------ */
     --font-body:    ${fonts.body};
     --font-heading: ${headingVal};
     --font-mono:    'Courier New', Courier, monospace;
     --line-height:  1.7;
 
-    /* Shape */
+    /* ---- Shape ----------------------------------------------- */
     --radius: ${radius}px;
 
-    /* Shadow */
+    /* ---- Shadow ---------------------------------------------- */
     --shadow:    ${lShad.sm};
     --shadow-md: ${lShad.md};
 }
@@ -810,8 +982,7 @@ ${lightVars}
 /* Dark mode — system preference */
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-${darkVars.replace(/^(.)/gm, '    $1')}
-
+${fmtVars(palette.dark, 8)}
         --shadow:    ${dShad.sm};
         --shadow-md: ${dShad.md};
     }
@@ -819,47 +990,48 @@ ${darkVars.replace(/^(.)/gm, '    $1')}
 
 /* Dark mode — manual override */
 [data-theme="dark"] {
-${darkVars}
-
+${fmtVars(palette.dark, 4)}
     --shadow:    ${dShad.sm};
     --shadow-md: ${dShad.md};
 }
 
 /* Light mode — manual override */
 [data-theme="light"] {
-${lightVars}
-
+${fmtVars(palette.light, 4)}
     --shadow:    ${lShad.sm};
     --shadow-md: ${lShad.md};
 }`;
     }
 
-    // --------------------------------------------------------
+    // ========================================================
     // Main update cycle
-    // --------------------------------------------------------
+    // ========================================================
+
+    let currentPalette = null;
 
     function update() {
         if (!isValidHex(state.primary) || !isValidHex(state.secondary)) return;
 
-        const palette = generatePalette(state.primary, state.secondary);
-        const fonts   = getFonts();
+        currentPalette = generatePalette(state.primary, state.secondary);
+        const fonts = getFonts();
 
         const light = document.getElementById('pane-light');
         const dark  = document.getElementById('pane-dark');
 
-        light.innerHTML = previewHTML();
-        dark.innerHTML  = previewHTML();
+        const paletteHTML = paletteStripHTML(currentPalette);
+        light.innerHTML = paletteHTML + previewBodyHTML();
+        dark.innerHTML  = paletteHTML + previewBodyHTML();
 
-        applyPane(light, palette.light, fonts, state.radius, state.shadow, false);
-        applyPane(dark,  palette.dark,  fonts, state.radius, state.shadow, true);
+        applyPane(light, currentPalette, 'light', fonts, state.radius, state.shadow);
+        applyPane(dark,  currentPalette, 'dark',  fonts, state.radius, state.shadow);
 
         document.getElementById('css-output').textContent =
-            generateCSS(palette, fonts, state.radius, state.shadow);
+            generateCSS(currentPalette, fonts, state.radius, state.shadow);
     }
 
-    // --------------------------------------------------------
+    // ========================================================
     // Wire up color controls
-    // --------------------------------------------------------
+    // ========================================================
 
     function syncColor(pickerId, hexId, stateKey) {
         const picker = document.getElementById(pickerId);
@@ -885,9 +1057,9 @@ ${lightVars}
     syncColor('color-primary',   'hex-primary',   'primary');
     syncColor('color-secondary', 'hex-secondary', 'secondary');
 
-    // --------------------------------------------------------
+    // ========================================================
     // Font controls
-    // --------------------------------------------------------
+    // ========================================================
 
     document.getElementById('font-body').addEventListener('change', e => {
         state.fontBody = e.target.value;
@@ -921,9 +1093,9 @@ ${lightVars}
         update();
     });
 
-    // --------------------------------------------------------
+    // ========================================================
     // Radius
-    // --------------------------------------------------------
+    // ========================================================
 
     document.getElementById('radius-input').addEventListener('input', e => {
         state.radius = parseInt(e.target.value);
@@ -931,9 +1103,9 @@ ${lightVars}
         update();
     });
 
-    // --------------------------------------------------------
+    // ========================================================
     // Shadow
-    // --------------------------------------------------------
+    // ========================================================
 
     document.querySelectorAll('#shadow-group .radio-opt').forEach(el => {
         el.addEventListener('click', () => {
@@ -945,9 +1117,17 @@ ${lightVars}
         });
     });
 
-    // --------------------------------------------------------
-    // Copy + Download
-    // --------------------------------------------------------
+    // ========================================================
+    // Copy helpers
+    // ========================================================
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('visible');
+        clearTimeout(t._timer);
+        t._timer = setTimeout(() => t.classList.remove('visible'), 1400);
+    }
 
     function copyCSS(btnId) {
         const css = document.getElementById('css-output').textContent;
@@ -962,6 +1142,14 @@ ${lightVars}
     document.getElementById('copy-btn').addEventListener('click',   () => copyCSS('copy-btn'));
     document.getElementById('copy-btn-2').addEventListener('click', () => copyCSS('copy-btn-2'));
 
+    // Click-to-copy on palette swatches (event delegation)
+    document.getElementById('preview').addEventListener('click', e => {
+        const sw = e.target.closest('.pv-swatch');
+        if (!sw) return;
+        const hex = sw.dataset.hex;
+        navigator.clipboard.writeText(hex).then(() => showToast('Copied ' + hex));
+    });
+
     document.getElementById('download-btn').addEventListener('click', () => {
         const css  = document.getElementById('css-output').textContent;
         const blob = new Blob([css], { type: 'text/css' });
@@ -972,9 +1160,9 @@ ${lightVars}
         URL.revokeObjectURL(a.href);
     });
 
-    // --------------------------------------------------------
+    // ========================================================
     // Initial render
-    // --------------------------------------------------------
+    // ========================================================
 
     update();
     </script>
