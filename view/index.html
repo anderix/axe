@@ -284,7 +284,7 @@
             text-align: right;
             font-size: 0.75rem;
             padding-right: 0.5rem;
-            width: 1%;
+            width: var(--row-num-width, 2.5rem);
             white-space: nowrap;
             border-right: 1px solid var(--color-border);
         }
@@ -577,6 +577,8 @@
 
         function render() {
             const filtered = getFilteredData();
+            const digits = String(Math.max(filtered.length, 1)).length;
+            table.style.setProperty('--row-num-width', 'calc(' + digits + 'ch + 1.25rem)');
 
             let sorted = filtered;
             if (sortCol >= 0 && sortDir > 0) {
