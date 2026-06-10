@@ -16,7 +16,7 @@
 
 /* Persistent toolbar. Slice 1 holds the view tabs; Today / nav / actions /
    theme toggle land in later slices. */
-.cal-bar {
+.cal-topbar {
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -45,6 +45,42 @@
     background: var(--color-accent);
     color: var(--color-surface);
     border-color: var(--color-accent);
+}
+
+.cal-today {
+    font: inherit;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.35rem 0.7rem;
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    cursor: pointer;
+}
+
+.cal-today:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+
+.cal-today-arrow {
+    font-size: 0.9em;
+    line-height: 1;
+}
+
+.cal-nav {
+    display: inline-flex;
+    gap: 0.2rem;
+}
+
+.cal-title {
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-left: 0.2rem;
 }
 
 /* The view body fills the area under the toolbar; the active view makes it
@@ -227,26 +263,7 @@
 
 /* --- Month grid view -------------------------------------- */
 
-.cal-month-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    flex-wrap: wrap;
-    margin-bottom: 0.75rem;
-}
-
-.cal-month-title {
-    margin: 0;
-    font-family: var(--font-heading);
-    font-size: 1.25rem;
-}
-
-.cal-month-nav {
-    display: flex;
-    gap: 0.3rem;
-}
-
+/* Toolbar prev/next chevrons (formerly the month header's nav buttons). */
 .cal-nav-btn {
     font-family: inherit;
     font-size: 0.85rem;
@@ -262,10 +279,6 @@
 .cal-nav-btn:hover {
     border-color: var(--color-accent);
     color: var(--color-accent);
-}
-
-.cal-nav-today {
-    font-weight: 600;
 }
 
 .cal-weekdays {
@@ -325,7 +338,6 @@
     flex-direction: column;
 }
 
-.cal-month-fill .cal-month-header,
 .cal-month-fill .cal-weekdays {
     flex-shrink: 0;
 }

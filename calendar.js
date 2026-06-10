@@ -753,7 +753,23 @@ function renderList(events, container, cal) {
         container.scrollTop = allPast ? container.scrollHeight
                                       : (anchorSection ? anchorSection.offsetTop : 0);
         attachObservers();
+        listSyncOnScroll(cal);              // initial title + Today-direction
     }
+
+    // Toolbar hooks for the list view: Today scrolls to the anchor; the title
+    // and Today arrow track scroll position (updated on scroll, rAF-throttled).
+    cal._listAnchorEl = anchorSection;
+    cal._listScrollToToday = function () {
+        container.scrollTop = allPast ? container.scrollHeight
+                                      : (anchorSection ? anchorSection.offsetTop : 0);
+    };
+    let scrollScheduled = false;
+    cal._listScroll = function () {
+        if (scrollScheduled) return;
+        scrollScheduled = true;
+        requestAnimationFrame(function () { scrollScheduled = false; listSyncOnScroll(cal); });
+    };
+    container.addEventListener('scroll', cal._listScroll, { passive: true });
 
     if (typeof requestAnimationFrame !== 'undefined') requestAnimationFrame(settle);
     else settle();
@@ -978,32 +994,7 @@ function renderMonth(events, container, cal) {
     container.classList.remove('cal-list-fill');
     const zone = cal.timezone;
 
-    if (!cal._monthCursor) {
-        const t = tz.partsInZone(new Date(), zone);
-        cal._monthCursor = { year: t.year, month: t.month };
-    }
-    const cur = cal._monthCursor;
-
-    // --- header: title + prev / Today / next -------------------
-    const header = elem('div', 'cal-month-header');
-    header.appendChild(elem('h2', 'cal-month-title',
-        tz.dayLabel(cur.year + '-' + tz.pad(cur.month) + '-01', { month: 'long', year: 'numeric' })));
-    const nav = elem('div', 'cal-month-nav');
-    const prev = elem('button', 'cal-nav-btn', '‹');
-    const today = elem('button', 'cal-nav-btn cal-nav-today', 'Today');
-    const next = elem('button', 'cal-nav-btn', '›');
-    prev.setAttribute('aria-label', 'Previous month');
-    next.setAttribute('aria-label', 'Next month');
-    prev.addEventListener('click', () => { cal._monthCursor = shiftMonth(cur, -1); cal._draw(); });
-    next.addEventListener('click', () => { cal._monthCursor = shiftMonth(cur, 1); cal._draw(); });
-    today.addEventListener('click', () => {
-        const t = tz.partsInZone(new Date(), zone);
-        cal._monthCursor = { year: t.year, month: t.month };
-        cal._draw();
-    });
-    nav.appendChild(prev); nav.appendChild(today); nav.appendChild(next);
-    header.appendChild(nav);
-    container.appendChild(header);
+    const cur = monthCursor(cal);
 
     // --- grid geometry -----------------------------------------
     const weekStart = (cal.opts.weekStart != null) ? cal.opts.weekStart : 0; // 0 = Sunday
@@ -1473,6 +1464,49 @@ function triggerDownload(out) {
 
 
 // ============================================================
+// Toolbar / nav helpers (shared by the view objects)
+// ============================================================
+
+function monthCursor(cal) {
+    if (!cal._monthCursor) {
+        const t = tz.partsInZone(new Date(), cal.timezone);
+        cal._monthCursor = { year: t.year, month: t.month };
+    }
+    return cal._monthCursor;
+}
+
+// Page the scrolling body by ~one screen (the list view's prev/next).
+function pageBody(cal, dir) {
+    const b = cal._body;
+    if (b) b.scrollTop += dir * Math.round(b.clientHeight * 0.9);
+}
+
+// List view: keep the toolbar in sync with scroll — the title tracks the
+// top-of-scroll month, and the Today arrow points toward the anchor (today /
+// next upcoming) while it's off-screen.
+function listSyncOnScroll(cal) {
+    const b = cal._body;
+    if (!b) return;
+    let topSec = null;
+    const secs = b.querySelectorAll('.cal-day');
+    for (const s of secs) { if (s.offsetTop <= b.scrollTop + 4) topSec = s; else break; }
+    if (topSec) {
+        const t = topSec.querySelector('time');
+        if (t) cal._listTopMonth = tz.dayLabel(t.getAttribute('datetime'), { month: 'long', year: 'numeric' });
+    }
+    const a = cal._listAnchorEl;
+    if (a && a.isConnected) {
+        const aTop = a.offsetTop;
+        cal._listTodayDir = b.scrollTop > aTop + 4 ? 'up'
+            : (b.scrollTop + b.clientHeight < aTop ? 'down' : null);
+    } else {
+        cal._listTodayDir = null;
+    }
+    cal._syncToolbar();
+}
+
+
+// ============================================================
 // Calendar
 // ============================================================
 
@@ -1519,20 +1553,45 @@ class Calendar {
     _draw() {
         closePopover(this);
         if (this._listObserver) { this._listObserver.disconnect(); this._listObserver = null; }
+        if (this._listScroll && this._body) {
+            this._body.removeEventListener('scroll', this._listScroll);
+            this._listScroll = null;
+        }
         if (!this._body) this._buildShell();
-        this._syncTabs();
+        this._syncToolbar();
         const viewObj = Calendar.views[this.view] || Calendar.views.list;
         this._body.innerHTML = '';
         viewObj.render(this.events, this._body, this);
     }
 
-    // Build the persistent shell once: a toolbar (view tabs for now) above a
-    // view body. Re-draws replace only the body, so the toolbar stays put.
+    // Build the persistent shell once: a toolbar above a view body. Re-draws
+    // replace only the body, so the toolbar stays put.
     _buildShell() {
         this.container.classList.add('axe-cal');
         this.container.innerHTML = '';
 
-        const bar = elem('div', 'cal-bar');
+        const bar = elem('div', 'cal-topbar');   // not 'cal-bar' — that's the month event-bar
+
+        // Today (with a direction arrow toward today) + prev/next chevrons.
+        const todayBtn = elem('button', 'cal-today');
+        todayBtn.type = 'button';
+        const arrow = elem('span', 'cal-today-arrow');
+        todayBtn.appendChild(arrow);
+        todayBtn.appendChild(document.createTextNode('Today'));
+        todayBtn.addEventListener('click', () => this._navToday());
+
+        const nav = elem('div', 'cal-nav');
+        const prev = elem('button', 'cal-nav-btn', '⌃');   // chevron up
+        const next = elem('button', 'cal-nav-btn', '⌄');   // chevron down
+        prev.type = 'button'; next.type = 'button';
+        prev.setAttribute('aria-label', 'Previous');
+        next.setAttribute('aria-label', 'Next');
+        prev.addEventListener('click', () => this._navPrev());
+        next.addEventListener('click', () => this._navNext());
+        nav.appendChild(prev); nav.appendChild(next);
+
+        const title = elem('span', 'cal-title');
+
         const tabs = elem('div', 'cal-views');
         for (const name of Object.keys(Calendar.views)) {
             const tab = elem('button', 'cal-view-tab', Calendar.views[name].label);
@@ -1541,6 +1600,10 @@ class Calendar {
             tab.addEventListener('click', () => this.switchView(name));
             tabs.appendChild(tab);
         }
+
+        bar.appendChild(todayBtn);
+        bar.appendChild(nav);
+        bar.appendChild(title);
         bar.appendChild(tabs);
 
         const body = elem('div', 'cal-body');
@@ -1550,12 +1613,27 @@ class Calendar {
         this._bar = bar;
         this._tabs = tabs;
         this._body = body;
+        this._titleEl = title;
+        this._todayArrow = arrow;
     }
 
-    _syncTabs() {
+    _activeView() { return Calendar.views[this.view] || Calendar.views.list; }
+    _navToday() { const v = this._activeView(); if (v.today) v.today(this); this._syncToolbar(); }
+    _navPrev()  { const v = this._activeView(); if (v.prev)  v.prev(this);  this._syncToolbar(); }
+    _navNext()  { const v = this._activeView(); if (v.next)  v.next(this);  this._syncToolbar(); }
+
+    // Sync the toolbar to the current view: active tab, title, Today arrow.
+    _syncToolbar() {
         if (!this._tabs) return;
         for (const tab of this._tabs.children) {
             tab.classList.toggle('is-active', tab.dataset.view === this.view);
+        }
+        const v = this._activeView();
+        if (this._titleEl) this._titleEl.textContent = v.title ? v.title(this) : '';
+        if (this._todayArrow) {
+            const dir = v.todayDir ? v.todayDir(this) : null;
+            this._todayArrow.textContent = dir === 'up' ? '↑' : (dir === 'down' ? '↓' : '');
+            this._todayArrow.style.visibility = dir ? 'visible' : 'hidden';
         }
     }
 
@@ -1630,8 +1708,34 @@ class Calendar {
 // nav model (how it moves through time — drives the wheel/keyboard in later
 // slices). Registry order is tab order.
 Calendar.views = {
-    month: { label: 'Month', render: renderMonth, navModel: 'paged' },
-    list:  { label: 'List',  render: renderList,  navModel: 'scroll' },
+    month: {
+        label: 'Month', render: renderMonth, navModel: 'paged',
+        title(cal) {
+            const c = monthCursor(cal);
+            return tz.dayLabel(c.year + '-' + tz.pad(c.month) + '-01', { month: 'long', year: 'numeric' });
+        },
+        today(cal) {
+            const t = tz.partsInZone(new Date(), cal.timezone);
+            cal._monthCursor = { year: t.year, month: t.month };
+            cal._draw();
+        },
+        prev(cal) { cal._monthCursor = shiftMonth(monthCursor(cal), -1); cal._draw(); },
+        next(cal) { cal._monthCursor = shiftMonth(monthCursor(cal), 1); cal._draw(); },
+        todayDir(cal) {
+            const t = tz.partsInZone(new Date(), cal.timezone);
+            const c = monthCursor(cal);
+            const cv = c.year * 12 + c.month, tv = t.year * 12 + t.month;
+            return cv > tv ? 'up' : (cv < tv ? 'down' : null);
+        },
+    },
+    list: {
+        label: 'List', render: renderList, navModel: 'scroll',
+        title(cal) { return cal._listTopMonth || ''; },
+        today(cal) { if (cal._listScrollToToday) cal._listScrollToToday(); },
+        prev(cal) { pageBody(cal, -1); },
+        next(cal) { pageBody(cal, 1); },
+        todayDir(cal) { return cal._listTodayDir || null; },
+    },
 };
 Calendar.exporters = { csv: exportCsv, ical: exportIcal };
 
