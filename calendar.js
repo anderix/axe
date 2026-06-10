@@ -1615,12 +1615,47 @@ class Calendar {
         this._body = body;
         this._titleEl = title;
         this._todayArrow = arrow;
+
+        // Wheel pages paged views (month); the keyboard pages all views. Bound
+        // on the (focusable) calendar so the keys don't hijack the whole page.
+        this.container.tabIndex = 0;
+        this.container.addEventListener('wheel', (e) => this._onWheel(e), { passive: false });
+        this.container.addEventListener('keydown', (e) => this._onKey(e));
     }
 
     _activeView() { return Calendar.views[this.view] || Calendar.views.list; }
     _navToday() { const v = this._activeView(); if (v.today) v.today(this); this._syncToolbar(); }
     _navPrev()  { const v = this._activeView(); if (v.prev)  v.prev(this);  this._syncToolbar(); }
     _navNext()  { const v = this._activeView(); if (v.next)  v.next(this);  this._syncToolbar(); }
+
+    // Wheel pages a paged view (month): one gesture = one step, then locked
+    // until the wheel goes quiet (~150ms) so a trackpad swipe doesn't fly
+    // through months. Scroll views (list) keep native wheel scrolling.
+    _onWheel(e) {
+        const v = this._activeView();
+        if (!v || v.navModel !== 'paged') return;
+        e.preventDefault();
+        let dy = e.deltaY;
+        if (e.deltaMode === 1) dy *= 16;          // lines → ~px
+        else if (e.deltaMode === 2) dy *= 400;    // pages → ~px
+        this._wheelAcc = (this._wheelAcc || 0) + dy;
+        if (this._wheelQuiet) clearTimeout(this._wheelQuiet);
+        this._wheelQuiet = setTimeout(() => { this._wheelLocked = false; this._wheelAcc = 0; }, 150);
+        if (this._wheelLocked || Math.abs(this._wheelAcc) < 20) return;
+        this._wheelLocked = true;
+        const dir = this._wheelAcc > 0 ? 1 : -1;   // down = next, up = prev
+        this._wheelAcc = 0;
+        if (dir > 0) this._navNext(); else this._navPrev();
+    }
+
+    // Keyboard: PageUp/PageDown page the period; Home jumps to today. All views.
+    _onKey(e) {
+        const tag = e.target && e.target.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        if (e.key === 'PageUp')        { e.preventDefault(); this._navPrev(); }
+        else if (e.key === 'PageDown') { e.preventDefault(); this._navNext(); }
+        else if (e.key === 'Home')     { e.preventDefault(); this._navToday(); }
+    }
 
     // Sync the toolbar to the current view: active tab, title, Today arrow.
     _syncToolbar() {
@@ -1640,6 +1675,9 @@ class Calendar {
     switchView(name) {
         if (!Calendar.views[name]) throw new Error('Calendar: unknown view "' + name + '"');
         this.view = name;
+        this._wheelAcc = 0;
+        this._wheelLocked = false;
+        if (this._wheelQuiet) { clearTimeout(this._wheelQuiet); this._wheelQuiet = null; }
         this._draw();
         return this;
     }
