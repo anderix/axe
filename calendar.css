@@ -83,6 +83,29 @@
     margin-left: 0.2rem;
 }
 
+.cal-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.cal-action {
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.35rem 0.6rem;
+    background: var(--color-surface);
+    color: var(--color-accent);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.cal-action:hover {
+    border-color: var(--color-accent);
+}
+
 /* The view body fills the area under the toolbar; the active view makes it
    scroll (list) or fill (month). position:relative so the list's scroll math
    measures against this box. Popovers still anchor to .axe-cal. */

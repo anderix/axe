@@ -1505,6 +1505,34 @@ function listSyncOnScroll(cal) {
     cal._syncToolbar();
 }
 
+// Build one declarative toolbar action: { label, href|copy|onClick, title }.
+// href → link; copy → clipboard button with "Copied!" feedback; onClick → custom.
+function buildAction(desc) {
+    let el;
+    if (desc.href != null) {
+        el = elem('a', 'cal-action', desc.label);
+        el.href = desc.href;
+    } else {
+        el = elem('button', 'cal-action', desc.label);
+        el.type = 'button';
+        if (desc.copy != null) {
+            el.addEventListener('click', function () {
+                const restore = el.textContent;
+                const flash = function () {
+                    el.textContent = 'Copied!';
+                    setTimeout(function () { el.textContent = restore; }, 1500);
+                };
+                if (navigator.clipboard) navigator.clipboard.writeText(desc.copy).then(flash, function () {});
+                else flash();
+            });
+        } else if (typeof desc.onClick === 'function') {
+            el.addEventListener('click', function () { desc.onClick(el); });
+        }
+    }
+    if (desc.title) el.title = desc.title;
+    return el;
+}
+
 
 // ============================================================
 // Calendar
@@ -1569,8 +1597,17 @@ class Calendar {
     _buildShell() {
         this.container.classList.add('axe-cal');
         this.container.innerHTML = '';
+        const body = elem('div', 'cal-body');
 
-        const bar = elem('div', 'cal-topbar');   // not 'cal-bar' — that's the month event-bar
+        if (this.opts.toolbar === false) {        // host drives nav via the API
+            this.container.appendChild(body);
+            this._body = body;
+            this._tabs = null;
+            this._wireInput();
+            return;
+        }
+
+        const bar = elem('div', 'cal-topbar');    // not 'cal-bar' — that's the month event-bar
 
         // Today (with a direction arrow toward today) + prev/next chevrons.
         const todayBtn = elem('button', 'cal-today');
@@ -1601,12 +1638,28 @@ class Calendar {
             tabs.appendChild(tab);
         }
 
+        // Host actions: declarative opts.actions render here, and the slot stays
+        // exposed (getToolbarSlot) so a host can inject custom controls — e.g.
+        // the viewer drops in a timezone <select> + Export.
+        const actions = elem('div', 'cal-actions');
+        if (Array.isArray(this.opts.actions)) {
+            for (const a of this.opts.actions) actions.appendChild(buildAction(a));
+        }
+
         bar.appendChild(todayBtn);
         bar.appendChild(nav);
         bar.appendChild(title);
         bar.appendChild(tabs);
+        bar.appendChild(actions);
 
-        const body = elem('div', 'cal-body');
+        if (this.opts.themeToggle !== false) {    // component-owned sun/moon, far right
+            const toggle = elem('button', 'theme-toggle', '☼');
+            toggle.type = 'button';
+            toggle.setAttribute('aria-label', 'Toggle theme');
+            toggle.addEventListener('click', () => this._toggleTheme());
+            bar.appendChild(toggle);
+        }
+
         this.container.appendChild(bar);
         this.container.appendChild(body);
 
@@ -1615,13 +1668,31 @@ class Calendar {
         this._body = body;
         this._titleEl = title;
         this._todayArrow = arrow;
+        this._actionsSlot = actions;
 
-        // Wheel pages paged views (month); the keyboard pages all views. Bound
-        // on the (focusable) calendar so the keys don't hijack the whole page.
+        this._wireInput();
+    }
+
+    // Wheel + keyboard, bound on the (focusable) calendar. Works with or without
+    // the toolbar.
+    _wireInput() {
         this.container.tabIndex = 0;
         this.container.addEventListener('wheel', (e) => this._onWheel(e), { passive: false });
         this.container.addEventListener('keydown', (e) => this._onKey(e));
     }
+
+    // Flip light/dark (the component owns the sun/moon). theme.js still sets the
+    // initial theme on load; this just toggles and persists the choice.
+    _toggleTheme() {
+        const cur = document.documentElement.getAttribute('data-theme');
+        const next = cur === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        try { localStorage.setItem('theme', next); } catch (e) {}
+    }
+
+    // The toolbar's right-side actions container, for hosts that inject custom
+    // controls (call after render()). Null when the toolbar is suppressed.
+    getToolbarSlot() { return this._actionsSlot || null; }
 
     _activeView() { return Calendar.views[this.view] || Calendar.views.list; }
     _navToday() { const v = this._activeView(); if (v.today) v.today(this); this._syncToolbar(); }
