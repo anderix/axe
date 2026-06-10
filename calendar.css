@@ -10,6 +10,50 @@
 .axe-cal {
     color: var(--color-text);
     position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Persistent toolbar. Slice 1 holds the view tabs; Today / nav / actions /
+   theme toggle land in later slices. */
+.cal-bar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.cal-views {
+    display: flex;
+    gap: 0.25rem;
+    margin-left: auto;
+}
+
+.cal-view-tab {
+    font: inherit;
+    font-size: 0.85rem;
+    padding: 0.3rem 0.75rem;
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    cursor: pointer;
+}
+
+.cal-view-tab.is-active {
+    background: var(--color-accent);
+    color: var(--color-surface);
+    border-color: var(--color-accent);
+}
+
+/* The view body fills the area under the toolbar; the active view makes it
+   scroll (list) or fill (month). position:relative so the list's scroll math
+   measures against this box. Popovers still anchor to .axe-cal. */
+.cal-body {
+    position: relative;
+    flex: 1;
+    min-height: 0;
 }
 
 
@@ -18,9 +62,7 @@
 /* The list scrolls inside the calendar area (like the month grid fills it),
    so the page — and any toolbar above — stays put. Needs a height-constrained
    container; without one it simply flows and the page scrolls instead. */
-.axe-cal.cal-list-fill {
-    flex: 1;
-    min-height: 0;
+.cal-body.cal-list-fill {
     overflow-y: auto;
     /* Prepending older events adjusts scrollTop by hand; let the browser's
        scroll anchoring also compensate and the view double-jumps forward. */
@@ -278,11 +320,9 @@
    fill its container, so cells grow tall and more events show. flex:1 takes
    effect when the container is itself a flex item with height (the viewer);
    in an auto-height embed it simply sizes to content — graceful either way. */
-.axe-cal.cal-month-fill {
+.cal-body.cal-month-fill {
     display: flex;
     flex-direction: column;
-    flex: 1;
-    min-height: 0;
 }
 
 .cal-month-fill .cal-month-header,

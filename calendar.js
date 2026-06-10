@@ -1519,10 +1519,44 @@ class Calendar {
     _draw() {
         closePopover(this);
         if (this._listObserver) { this._listObserver.disconnect(); this._listObserver = null; }
-        const view = Calendar.views[this.view] || Calendar.views.list;
+        if (!this._body) this._buildShell();
+        this._syncTabs();
+        const viewObj = Calendar.views[this.view] || Calendar.views.list;
+        this._body.innerHTML = '';
+        viewObj.render(this.events, this._body, this);
+    }
+
+    // Build the persistent shell once: a toolbar (view tabs for now) above a
+    // view body. Re-draws replace only the body, so the toolbar stays put.
+    _buildShell() {
         this.container.classList.add('axe-cal');
         this.container.innerHTML = '';
-        view(this.events, this.container, this);
+
+        const bar = elem('div', 'cal-bar');
+        const tabs = elem('div', 'cal-views');
+        for (const name of Object.keys(Calendar.views)) {
+            const tab = elem('button', 'cal-view-tab', Calendar.views[name].label);
+            tab.type = 'button';
+            tab.dataset.view = name;
+            tab.addEventListener('click', () => this.switchView(name));
+            tabs.appendChild(tab);
+        }
+        bar.appendChild(tabs);
+
+        const body = elem('div', 'cal-body');
+        this.container.appendChild(bar);
+        this.container.appendChild(body);
+
+        this._bar = bar;
+        this._tabs = tabs;
+        this._body = body;
+    }
+
+    _syncTabs() {
+        if (!this._tabs) return;
+        for (const tab of this._tabs.children) {
+            tab.classList.toggle('is-active', tab.dataset.view === this.view);
+        }
     }
 
     switchView(name) {
@@ -1592,7 +1626,13 @@ class Calendar {
 
 // View and exporter registries. Plain maps so adding one later is
 // trivial; no self-registration ceremony, no separate files.
-Calendar.views = { month: renderMonth, list: renderList };
+// Each view is an object: a label for its tab, the render function, and a
+// nav model (how it moves through time — drives the wheel/keyboard in later
+// slices). Registry order is tab order.
+Calendar.views = {
+    month: { label: 'Month', render: renderMonth, navModel: 'paged' },
+    list:  { label: 'List',  render: renderList,  navModel: 'scroll' },
+};
 Calendar.exporters = { csv: exportCsv, ical: exportIcal };
 
 // Version. Keep in sync with the axe.css / calendar.css headers and
