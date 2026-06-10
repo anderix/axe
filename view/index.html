@@ -9,9 +9,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>View</title>
-    <link rel="stylesheet" href="../brand.css">
+    <link rel="stylesheet" href="../default.css">
+    <link rel="stylesheet" href="../../brand.css"><!-- site brand (sibling of axe/); overrides default, 404s harmlessly when absent -->
     <link rel="stylesheet" href="../axe.css">
+    <link rel="stylesheet" href="../calendar.css">
     <script src="../dependencies/marked.min.js"></script>
+    <script src="../calendar.js"></script>
     <style>
         body {
             display: flex;
@@ -59,6 +62,15 @@
             width: auto;
         }
 
+        .toolbar .sub-link {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--color-accent);
+            text-decoration: none;
+        }
+
+        .toolbar .sub-link:hover { text-decoration: underline; }
+
         .toolbar label {
             display: inline;
             font-weight: normal;
@@ -95,11 +107,18 @@
             color: var(--color-accent);
         }
 
-        /* Content area - override axe constraints */
+        /* Content area - override axe constraints.
+           width:100% is required, not just max-width: in the flex-column body,
+           main's inherited `margin: 0 auto` otherwise shrinks it to content
+           width and centers it (auto cross-axis margins disable the stretch). */
         body > main {
             flex: 1;
             padding: 0;
             max-width: 100%;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
         }
 
         /* --- Directory view --- */
@@ -296,6 +315,15 @@
             padding: 2.5rem 1.5rem;
         }
 
+        /* --- iCalendar view --- */
+        /* Full-bleed + full-height: a calendar wants all the space it can get
+           (Teams-style). height:100% lets the month grid fill the viewport. */
+        .ical-wrap {
+            width: 100%;
+            padding: 1.5rem;
+            box-sizing: border-box;
+        }
+
         /* States */
         .state-message {
             text-align: center;
@@ -310,6 +338,7 @@
             .toolbar { padding: 0.5rem 0.75rem; }
             .col-date { display: none; }
             .md-view { padding: 1.5rem 1rem; }
+            .ical-wrap { padding: 1rem 0.75rem; }
         }
     </style>
     <script>
@@ -362,7 +391,9 @@
         csv: renderCsv,
         tsv: renderCsv,
         md: renderMarkdown,
-        markdown: renderMarkdown
+        markdown: renderMarkdown,
+        ics: renderIcal,
+        ical: renderIcal
     };
 
     if (renderers[ext]) {
@@ -743,6 +774,100 @@
         const content = document.getElementById('content');
         content.className = 'md-view';
         content.innerHTML = marked.parse(text);
+    }
+
+
+    // ==========================================================
+    // iCalendar Renderer
+    // ==========================================================
+
+    function renderIcal(text) {
+        const toolbar = document.getElementById('toolbar');
+        toolbar.style.display = 'flex';
+        document.getElementById('title').textContent = name;
+
+        const content = document.getElementById('content');
+        content.className = '';
+        content.innerHTML = '';
+        // Flex column so the calendar (.ical-wrap, flex:1) fills main's height.
+        content.style.flex = '1';
+        content.style.minHeight = '0';
+        content.style.display = 'flex';
+        content.style.flexDirection = 'column';
+        const wrap = el('div', 'ical-wrap');
+        content.appendChild(wrap);
+
+        // sourceUrl tells the calendar where this feed lives (we fetched the
+        // text ourselves) so it can offer a Subscribe link.
+        const cal = new Calendar(wrap, { source: text, sourceUrl: fetchUrl, view: 'month' });
+        const toggle = toolbar.querySelector('.theme-toggle');
+
+        // View switch (month default / list).
+        const viewLabel = el('label'); viewLabel.textContent = 'View:';
+        const viewSelect = el('select');
+        viewSelect.innerHTML = '<option value="month">Month</option><option value="list">List</option>';
+        viewSelect.addEventListener('change', () => cal.switchView(viewSelect.value));
+
+        const sep1 = el('span', 'separator');
+
+        // Display timezone. Empty value = the browser's local zone.
+        const tzLabel = el('label'); tzLabel.textContent = 'Zone:';
+        const tzSelect = el('select');
+        const localZone = (Intl.DateTimeFormat().resolvedOptions().timeZone) || 'local';
+        const zones = ['UTC', 'America/New_York', 'America/Chicago', 'America/Denver',
+            'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu',
+            'Europe/London', 'Europe/Berlin', 'Asia/Tokyo', 'Australia/Sydney'];
+        let tzOpts = '<option value="">Local (' + escHtml(localZone) + ')</option>';
+        for (const z of zones) tzOpts += '<option value="' + escAttr(z) + '">' + escHtml(z) + '</option>';
+        tzSelect.innerHTML = tzOpts;
+        tzSelect.addEventListener('change', () => cal.setTimezone(tzSelect.value || null));
+
+        const sep2 = el('span', 'separator');
+
+        // Exports (download the current event set).
+        const csvBtn = el('button'); csvBtn.textContent = 'Export CSV';
+        csvBtn.addEventListener('click', () => cal.export('csv'));
+        const icalBtn = el('button'); icalBtn.textContent = 'Export iCal';
+        icalBtn.addEventListener('click', () => cal.export('ical'));
+
+        // Subscribe — only when the feed lives at a real http(s) URL (not a
+        // local file:// or inline source), so there's a stable URL to subscribe to.
+        const sub = cal.getSubscribeUrl();
+        const subNodes = [];
+        if (sub) {
+            subNodes.push(el('span', 'separator'));
+            const subLink = el('a', 'sub-link');
+            subLink.textContent = 'Subscribe';
+            subLink.href = sub.webcal;
+            subLink.title = 'Subscribe in your calendar app — ' + sub.url;
+            subNodes.push(subLink);
+            const copyBtn = el('button');
+            copyBtn.textContent = 'Copy URL';
+            copyBtn.title = 'Copy the feed URL (for Google Calendar)';
+            copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(sub.url).then(() => {
+                    copyBtn.textContent = 'Copied!';
+                    setTimeout(() => copyBtn.textContent = 'Copy URL', 1500);
+                });
+            });
+            subNodes.push(copyBtn);
+        }
+
+        const sep3 = el('span', 'separator');
+        const countInfo = el('span', 'info');
+
+        [viewLabel, viewSelect, sep1, tzLabel, tzSelect, sep2, csvBtn, icalBtn, ...subNodes, sep3, countInfo]
+            .forEach(node => toolbar.insertBefore(node, toggle));
+
+        return cal.render().then(() => {
+            // Prefer the calendar's own name (X-WR-CALNAME) over the filename.
+            if (cal.meta && cal.meta.calname) {
+                document.getElementById('title').textContent = cal.meta.calname;
+                document.title = cal.meta.calname + ' - View';
+            }
+            const n = cal.getEvents().length;
+            countInfo.textContent = n + (n === 1 ? ' event' : ' events');
+        });
     }
 
 
