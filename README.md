@@ -177,6 +177,8 @@ While iterating, the working copy carries a `-dev` suffix (for example `0.4.1-de
 
 Promotes the calendar's categorical event colors to brand tokens (`--cal-cat-hue`, `--cal-cat-saturation`, `--cal-cat-lightness`), so the chip and bar palette is now fully brand-overridable — the last hard-coded color values in the component. Defaults match the previous look, so no rendered calendar changes.
 
+Reworks the list view to open on today and lazy-load by event count. It scrolls inside the calendar area (like the month grid), so a toolbar above stays put; it pins today (or the next upcoming day) to the top with a small run of history just above; and it renders only a window — roughly the last 10 events back and two screens forward — extending in 20-event batches as you scroll, instead of dumping the whole feed oldest-first. Like the month grid, the list view needs a height-constrained container (a definite `height`, not `min-height`); without one it falls back to normal flow.
+
 ### 0.4.0 (2026-06-10)
 
 Renames the in-axe default brand `brand.css` → `default.css` and establishes the brand cascade: a page links `default.css` (a complete baseline) and then its own sibling `brand.css`, which overrides only what differs and 404s harmlessly when absent. The universal viewer links the site brand this way, so it inherits each deployment's identity. This decouples the framework from any single brand: `axe/` becomes uniformly symlinkable across a site collection (or shared from one public copy), with `brand.css` the only per-site file.

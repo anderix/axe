@@ -15,6 +15,20 @@
 
 /* --- List view -------------------------------------------- */
 
+/* The list scrolls inside the calendar area (like the month grid fills it),
+   so the page — and any toolbar above — stays put. Needs a height-constrained
+   container; without one it simply flows and the page scrolls instead. */
+.axe-cal.cal-list-fill {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* Zero-height tripwires the lazy-loader watches at the list's top and bottom. */
+.cal-sentinel {
+    height: 1px;
+}
+
 .cal-list .cal-day {
     margin-bottom: 1.5rem;
 }

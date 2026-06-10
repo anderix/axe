@@ -604,51 +604,159 @@ function statusClass(status) {
 // days de-emphasized; today marked.
 // ============================================================
 
+// Events (not days) to show before today on first paint, and per lazy batch
+// as the user scrolls. Counting events rather than days keeps the window
+// useful when a feed is sparse (e.g. one event a month).
+const LIST_PAST_INITIAL = 10;
+const LIST_BATCH = 20;
+
+function buildDayGroup(dayKey, dayEvents, todayKey, zone, cal) {
+    const section = elem('section', 'cal-day');
+    if (dayKey === todayKey) section.classList.add('is-today');
+    else if (dayKey < todayKey) section.classList.add('is-past');
+
+    const heading = elem('h3', 'cal-day-label');
+    const time = elem('time', null, tz.dayLabel(dayKey, { weekday: 'long', month: 'long', day: 'numeric' }));
+    time.setAttribute('datetime', dayKey);
+    heading.appendChild(time);
+    if (dayKey === todayKey) heading.appendChild(elem('span', 'cal-today-tag', 'Today'));
+    section.appendChild(heading);
+
+    for (const ev of dayEvents) section.appendChild(renderListEvent(ev, zone, cal));
+    return section;
+}
+
 function renderList(events, container, cal) {
     container.classList.remove('cal-month-fill');
+    container.classList.add('cal-list-fill');
+
     const zone = cal.timezone;
+    const today = tz.todayKey(zone);
+
+    // Expand recurring across a generous window; we render only a slice of
+    // this in-memory list and extend it as the user scrolls (no refetch).
+    const expanded = expandRecurring(events, tz.addDays(today, -366), tz.addDays(today, 366));
+
     const wrap = elem('div', 'cal-list');
+    container.appendChild(wrap);
 
-    // Expand recurring events across a generous window around today (a flat
-    // list has no single "visible month" to bound them to).
-    const nowKey = tz.todayKey(zone);
-    events = expandRecurring(events, tz.addDays(nowKey, -366), tz.addDays(nowKey, 366));
-
-    if (!events.length) {
+    if (!expanded.length) {
         wrap.appendChild(elem('p', 'cal-empty', 'No events.'));
-        container.appendChild(wrap);
         return;
     }
 
-    const sorted = events.slice().sort((a, b) => startSortKey(a, zone) - startSortKey(b, zone));
-
-    // Group by start day.
-    const groups = new Map();
+    // Sort, then group into an ordered array of [dayKey, events].
+    const sorted = expanded.slice().sort((a, b) => startSortKey(a, zone) - startSortKey(b, zone));
+    const groupsMap = new Map();
     for (const ev of sorted) {
         const key = eventDayRange(ev, zone).startKey;
-        if (!groups.has(key)) groups.set(key, []);
-        groups.get(key).push(ev);
+        if (!groupsMap.has(key)) groupsMap.set(key, []);
+        groupsMap.get(key).push(ev);
+    }
+    const days = Array.from(groupsMap.entries());   // [ [dayKey, [ev,...]], ... ]
+
+    // Anchor on today, else the first upcoming day; if all events are past,
+    // anchor on the most recent day.
+    let anchorIdx = days.findIndex(([k]) => k >= today);
+    const allPast = anchorIdx === -1;
+    if (allPast) anchorIdx = days.length - 1;
+
+    // Sentinels bracket a live content node; lazy-loading inserts day groups
+    // into the content node and watches the sentinels.
+    const topSentinel = elem('div', 'cal-sentinel');
+    const content = elem('div', 'cal-list-content');
+    const botSentinel = elem('div', 'cal-sentinel');
+    wrap.appendChild(topSentinel);
+    wrap.appendChild(content);
+    wrap.appendChild(botSentinel);
+
+    // Initial past: walk back from the anchor over whole days until
+    // LIST_PAST_INITIAL events are covered, so a sparse feed still shows
+    // real history rather than a near-empty 30-day window.
+    let startIdx = anchorIdx, pastCount = 0;
+    while (startIdx > 0 && pastCount < LIST_PAST_INITIAL) {
+        startIdx--;
+        pastCount += days[startIdx][1].length;
+    }
+    let endIdx = anchorIdx;   // inclusive bounds of what's currently rendered
+
+    for (let i = startIdx; i <= endIdx; i++) {
+        content.appendChild(buildDayGroup(days[i][0], days[i][1], today, zone, cal));
+    }
+    const anchorSection = content.lastChild;   // the anchor day's section
+
+    // --- lazy loading, by event count -------------------------------
+    function prependBatch() {
+        if (startIdx <= 0) return;
+        const before = container.scrollHeight;
+        const frag = document.createDocumentFragment();
+        let added = 0;
+        while (startIdx > 0 && added < LIST_BATCH) {
+            startIdx--;
+            const [k, evs] = days[startIdx];
+            frag.insertBefore(buildDayGroup(k, evs, today, zone, cal), frag.firstChild);
+            added += evs.length;
+        }
+        content.insertBefore(frag, content.firstChild);
+        container.scrollTop += container.scrollHeight - before;   // hold the viewport steady
+        if (startIdx <= 0 && cal._listObserver) cal._listObserver.unobserve(topSentinel);
+    }
+    function appendBatch() {
+        if (endIdx >= days.length - 1) return;
+        let added = 0;
+        while (endIdx + 1 < days.length && added < LIST_BATCH) {
+            endIdx++;
+            const [k, evs] = days[endIdx];
+            content.appendChild(buildDayGroup(k, evs, today, zone, cal));
+            added += evs.length;
+        }
+        if (endIdx >= days.length - 1 && cal._listObserver) cal._listObserver.unobserve(botSentinel);
     }
 
-    const today = tz.todayKey(zone);
-
-    for (const [dayKey, dayEvents] of groups) {
-        const section = elem('section', 'cal-day');
-        if (dayKey === today) section.classList.add('is-today');
-        else if (dayKey < today) section.classList.add('is-past');
-
-        const heading = elem('h3', 'cal-day-label');
-        const time = elem('time', null, tz.dayLabel(dayKey, { weekday: 'long', month: 'long', day: 'numeric' }));
-        time.setAttribute('datetime', dayKey);
-        heading.appendChild(time);
-        if (dayKey === today) heading.appendChild(elem('span', 'cal-today-tag', 'Today'));
-        section.appendChild(heading);
-
-        for (const ev of dayEvents) section.appendChild(renderListEvent(ev, zone, cal));
-        wrap.appendChild(section);
+    function attachObservers() {
+        if (typeof IntersectionObserver === 'undefined') {
+            // No IntersectionObserver: render the rest so nothing is hidden.
+            while (startIdx > 0) {
+                startIdx--;
+                content.insertBefore(buildDayGroup(days[startIdx][0], days[startIdx][1], today, zone, cal), content.firstChild);
+            }
+            while (endIdx + 1 < days.length) {
+                endIdx++;
+                content.appendChild(buildDayGroup(days[endIdx][0], days[endIdx][1], today, zone, cal));
+            }
+            return;
+        }
+        const obs = new IntersectionObserver((entries) => {
+            for (const e of entries) {
+                if (!e.isIntersecting) continue;
+                if (e.target === topSentinel) prependBatch();
+                else if (e.target === botSentinel) appendBatch();
+            }
+        }, { root: container, rootMargin: '600px 0px' });
+        cal._listObserver = obs;
+        if (startIdx > 0) obs.observe(topSentinel);
+        if (endIdx < days.length - 1) obs.observe(botSentinel);
     }
 
-    container.appendChild(wrap);
+    // Measure-fill-scroll-observe must wait for layout: the flex container has
+    // no resolved height during the synchronous render pass, so offsetTop and
+    // clientHeight would read 0. Defer one frame, then fill the initial future,
+    // pin the anchor, and only then watch the sentinels (so they don't all fire
+    // against an unscrolled list and cascade-load everything).
+    function settle() {
+        const anchorTop = anchorSection ? anchorSection.offsetTop : 0;
+        while (endIdx + 1 < days.length &&
+               container.scrollHeight - anchorTop < 2 * container.clientHeight) {
+            endIdx++;
+            content.appendChild(buildDayGroup(days[endIdx][0], days[endIdx][1], today, zone, cal));
+        }
+        container.scrollTop = allPast ? container.scrollHeight
+                                      : (anchorSection ? anchorSection.offsetTop : 0);
+        attachObservers();
+    }
+
+    if (typeof requestAnimationFrame !== 'undefined') requestAnimationFrame(settle);
+    else settle();
 }
 
 function renderListEvent(ev, zone, cal) {
@@ -867,6 +975,7 @@ function makeBar(ev, seg, zone, cal) {
 
 function renderMonth(events, container, cal) {
     closePopover(cal);
+    container.classList.remove('cal-list-fill');
     const zone = cal.timezone;
 
     if (!cal._monthCursor) {
@@ -1409,6 +1518,7 @@ class Calendar {
 
     _draw() {
         closePopover(this);
+        if (this._listObserver) { this._listObserver.disconnect(); this._listObserver = null; }
         const view = Calendar.views[this.view] || Calendar.views.list;
         this.container.classList.add('axe-cal');
         this.container.innerHTML = '';
