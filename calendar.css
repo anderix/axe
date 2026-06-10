@@ -1,5 +1,5 @@
 /* ============================================================
-   AXE CALENDAR v0.4.0 — styles
+   AXE CALENDAR v0.4.1-dev — styles
    Uses axe's required variable contract only. No hard-coded
    colors, fonts, or radii. Mobile-first; min-width to expand.
 
@@ -143,8 +143,8 @@
     padding: 0.1rem 0.5rem;
     border-radius: calc(var(--radius) * 2);
     color: var(--color-text);
-    background: color-mix(in srgb, hsl(var(--chip-hue, 210) 55% 50%) 14%, var(--color-surface));
-    border: 1px solid color-mix(in srgb, hsl(var(--chip-hue, 210) 55% 50%) 35%, var(--color-border));
+    background: color-mix(in srgb, hsl(var(--chip-hue, var(--cal-cat-hue, 210)) var(--cal-cat-saturation, 55%) var(--cal-cat-lightness, 50%)) 14%, var(--color-surface));
+    border: 1px solid color-mix(in srgb, hsl(var(--chip-hue, var(--cal-cat-hue, 210)) var(--cal-cat-saturation, 55%) var(--cal-cat-lightness, 50%)) 35%, var(--color-border));
 }
 
 .cal-chip::before {
@@ -152,7 +152,7 @@
     width: 0.5rem;
     height: 0.5rem;
     border-radius: 50%;
-    background: hsl(var(--chip-hue, 210) 55% 50%);
+    background: hsl(var(--chip-hue, var(--cal-cat-hue, 210)) var(--cal-cat-saturation, 55%) var(--cal-cat-lightness, 50%));
     flex-shrink: 0;
 }
 
@@ -340,9 +340,9 @@
     overflow: hidden;
     text-overflow: ellipsis;
     border: none;
-    border-left: 3px solid hsl(var(--bar-hue, 210) 55% 50%);
+    border-left: 3px solid hsl(var(--bar-hue, var(--cal-cat-hue, 210)) var(--cal-cat-saturation, 55%) var(--cal-cat-lightness, 50%));
     border-radius: calc(var(--radius) * 0.5);
-    background: color-mix(in srgb, hsl(var(--bar-hue, 210) 55% 50%) 18%, var(--color-surface));
+    background: color-mix(in srgb, hsl(var(--bar-hue, var(--cal-cat-hue, 210)) var(--cal-cat-saturation, 55%) var(--cal-cat-lightness, 50%)) 18%, var(--color-surface));
     color: var(--color-text);
     cursor: pointer;
 }
@@ -366,7 +366,7 @@
     border-radius: 50%;
     margin-right: 0.35rem;
     vertical-align: middle;
-    background: hsl(var(--bar-hue, 210) 55% 50%);
+    background: hsl(var(--bar-hue, var(--cal-cat-hue, 210)) var(--cal-cat-saturation, 55%) var(--cal-cat-lightness, 50%));
 }
 
 .cal-bar.is-timed.is-plain::before {
@@ -462,7 +462,7 @@
     height: 0.55rem;
     flex-shrink: 0;
     border-radius: 50%;
-    background: hsl(var(--bar-hue, 210) 55% 50%);
+    background: hsl(var(--bar-hue, var(--cal-cat-hue, 210)) var(--cal-cat-saturation, 55%) var(--cal-cat-lightness, 50%));
 }
 
 .cal-pop-dot.is-plain {

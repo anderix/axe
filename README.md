@@ -89,6 +89,16 @@ After it loads, `cal.switchView('list')`, `cal.setTimezone('UTC')`, `cal.filter(
 
 The parser is standards-only: it reads compliant iCalendar and carries no vendor-specific branches. A feed that encodes data in a non-standard way (Scoutbook, for instance, writes all-day events as timed midnight-to-23:45) should be normalized by whatever serves it, never patched for inside the engine.
 
+### Category colors
+
+Event chips and bars are tinted by a per-event hue, computed deterministically from the category name in `calendar.js`. Color is always a redundant cue — the label rides along — so the calendar stays readable when it's ignored. The shared saturation and lightness, plus the fallback hue for uncategorized events, come from three brand tokens so a site can tune them (including per theme); they default to a mid blue and `404` harmlessly back to in-component fallbacks when undefined.
+
+| Variable             | Default | Purpose                                       |
+|----------------------|---------|-----------------------------------------------|
+| --cal-cat-hue        | 210     | Fallback hue for events with no category      |
+| --cal-cat-saturation | 55%     | Saturation of all categorical chips and bars  |
+| --cal-cat-lightness  | 50%     | Lightness of all categorical chips and bars   |
+
 ### Remote feeds and CORS
 
 The viewer fetches in the browser, so a remote `?url=` only loads if that origin sends `Access-Control-Allow-Origin`. Most calendar feeds don't. A locked-down remote feed needs a same-origin proxy that re-serves it, and that proxy is also the right place to normalize any non-standard encoding before the calendar sees it. Local files and same-origin or CORS-open feeds load directly.
@@ -162,6 +172,10 @@ Axe carries a single version number so you can tell which build a site is runnin
 This is a deploy-tracking stamp, not a strict semver contract; git remains the source of truth for what changed. Breaking changes to variable names still get a dated note below.
 
 While iterating, the working copy carries a `-dev` suffix (for example `0.4.1-dev`). This is deliberate: `anderix.com` runs the working copy via the symlink and gets deployed often, ahead of the last stable release that other sites vendor. The `-dev` suffix keeps the stamp honest — a site reporting `0.4.1-dev` is bleeding-edge, one reporting `0.4.0` is the last release. When a change is stable enough to push everywhere, drop the suffix (`0.4.1`) and re-vendor the files into each consuming project in the same pass.
+
+### 0.4.1-dev (2026-06-10)
+
+Promotes the calendar's categorical event colors to brand tokens (`--cal-cat-hue`, `--cal-cat-saturation`, `--cal-cat-lightness`), so the chip and bar palette is now fully brand-overridable — the last hard-coded color values in the component. Defaults match the previous look, so no rendered calendar changes.
 
 ### 0.4.0 (2026-06-10)
 

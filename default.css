@@ -34,6 +34,14 @@
     /* Shadow */
     --shadow:    0 1px 3px rgba(0, 0, 0, 0.09);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.11);
+
+    /* Calendar — categorical event colors (chips & bars). The hue is set
+       per event in JS; these tune the shared saturation and lightness and
+       the fallback hue for uncategorized events. Theme-independent by
+       default; a brand may override them, including per theme. */
+    --cal-cat-hue:        210;
+    --cal-cat-saturation: 55%;
+    --cal-cat-lightness:  50%;
 }
 
 /* Dark mode — system preference */
@@ -52,6 +60,8 @@
         --color-nav-text:     #dce3e8;
         --shadow:             0 1px 3px rgba(0, 0, 0, 0.4);
         --shadow-md:          0 4px 12px rgba(0, 0, 0, 0.5);
+        /* Lighten categorical chips/bars so they pop on dark surfaces. */
+        --cal-cat-lightness:  62%;
     }
 }
 
@@ -70,6 +80,8 @@
     --color-nav-text:     #dce3e8;
     --shadow:             0 1px 3px rgba(0, 0, 0, 0.4);
     --shadow-md:          0 4px 12px rgba(0, 0, 0, 0.5);
+    /* Lighten categorical chips/bars so they pop on dark surfaces. */
+    --cal-cat-lightness:  62%;
 }
 
 /* Light mode — explicit override */
