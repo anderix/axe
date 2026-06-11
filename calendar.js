@@ -1517,12 +1517,13 @@ function pageBody(cal, dir) {
 function listSyncOnScroll(cal) {
     const b = cal._body;
     if (!b) return;
-    const top = b.scrollTop, bottom = top + b.clientHeight;
-    let topSec = null, botSec = null;
-    const secs = b.querySelectorAll('.cal-day');
-    for (const s of secs) {
-        if (s.offsetTop <= top + 4) topSec = s;
-        if (s.offsetTop < bottom) botSec = s; else break;
+    const top = b.scrollTop;
+    // The top-of-fold day: the last section at or above the scroll line. Sections
+    // are in date order, so stop as soon as one starts below it.
+    let topSec = null;
+    for (const s of b.querySelectorAll('.cal-day')) {
+        if (s.offsetTop > top + 4) break;
+        topSec = s;
     }
     const keyOf = (s) => (s && s.querySelector('time')) ? s.querySelector('time').getAttribute('datetime') : null;
     const topKey = keyOf(topSec);
@@ -1530,10 +1531,13 @@ function listSyncOnScroll(cal) {
         cal._listTopMonth = tz.dayLabel(topKey, { month: 'long', year: 'numeric' });
         cal._listTopYM = { year: +topKey.slice(0, 4), month: +topKey.slice(5, 7) };
     }
-    // Today arrow: where is today relative to the visible day range?
-    const t = cal._listToday, botKey = keyOf(botSec);
+    // Today arrow: "Today" (no arrow) only when the target day — the next day
+    // that has an event — is pinned at the very top. Once you scroll off it the
+    // arrow points the way back: down when the top is earlier than the target,
+    // up when it's later.
+    const t = cal._listToday;
     if (t && topKey) {
-        cal._listTodayDir = t < topKey ? 'up' : (botKey && t > botKey ? 'down' : null);
+        cal._listTodayDir = topKey === t ? null : (topKey < t ? 'down' : 'up');
     } else {
         cal._listTodayDir = null;
     }
@@ -1654,11 +1658,12 @@ class Calendar {
         todayBtn.addEventListener('click', () => this._navToday());
 
         const nav = elem('div', 'cal-nav');
-        // Solid triangles, not the ⌃⌄ arrowheads: those render off-center
-        // (one high, one low) and read small. Triangles sit dead-center and
-        // are unambiguous. aria-label carries the meaning either way.
-        const prev = elem('button', 'cal-nav-btn', '▲');   // prev (up)
-        const next = elem('button', 'cal-nav-btn', '▼');   // next (down)
+        // Chevrons are drawn in CSS (::before borders), not the ⌃⌄ glyphs:
+        // those render off-center (one high, one low). The CSS shape sits
+        // dead-center and both buttons read at the same level. aria-label
+        // carries the meaning.
+        const prev = elem('button', 'cal-nav-btn cal-nav-up');     // prev
+        const next = elem('button', 'cal-nav-btn cal-nav-down');   // next
         prev.type = 'button'; next.type = 'button';
         prev.setAttribute('aria-label', 'Previous');
         next.setAttribute('aria-label', 'Next');
@@ -1851,8 +1856,9 @@ class Calendar {
         if (this._titleEl) this._titleEl.textContent = v.title ? v.title(this) : '';
         if (this._todayArrow) {
             const dir = v.todayDir ? v.todayDir(this) : null;
-            this._todayArrow.textContent = dir === 'up' ? '↑' : (dir === 'down' ? '↓' : '');
-            this._todayArrow.style.visibility = dir ? 'visible' : 'hidden';
+            // Always a glyph in a fixed-width slot, so the button never resizes:
+            // ↑/↓ point toward today when it's off-screen, ● marks "you're there".
+            this._todayArrow.textContent = dir === 'up' ? '↑' : (dir === 'down' ? '↓' : '●');
         }
     }
 

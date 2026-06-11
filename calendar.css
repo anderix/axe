@@ -67,9 +67,14 @@
 }
 
 .cal-today-arrow {
-    font-size: 1.2em;
+    font-size: 1.1em;
     font-weight: 700;
     line-height: 1;
+    /* Fixed-width slot: the glyph (↑ / ↓ / ●) swaps but the button never
+       resizes between "today" and an off-screen-today state. */
+    display: inline-block;
+    width: 1em;
+    text-align: center;
 }
 
 .cal-nav {
@@ -410,13 +415,12 @@
 
 /* --- Month grid view -------------------------------------- */
 
-/* Toolbar prev/next chevrons (formerly the month header's nav buttons).
-   Fixed-size, flex-centered squares so the glyph sits dead-center and both
-   buttons read at the same level. */
+/* Toolbar prev/next nav buttons (formerly the month header's nav buttons).
+   Fixed-size, flex-centered squares with a CSS-drawn chevron so the glyph
+   sits dead-center and both buttons read at exactly the same level — the
+   ⌃⌄ arrowhead characters render off-center and can't be aligned reliably. */
 .cal-nav-btn {
     font-family: inherit;
-    font-size: 1.15rem;
-    font-weight: 700;
     line-height: 1;
     display: inline-flex;
     align-items: center;
@@ -430,6 +434,21 @@
     border-radius: var(--radius);
     cursor: pointer;
 }
+
+/* The chevron: a small square showing only its right + bottom edges, rotated
+   to point. Up and down share the construction with mirror-image rotation and
+   nudge, so they sit at the same level by definition. */
+.cal-nav-btn::before {
+    content: '';
+    display: block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border: solid currentColor;
+    border-width: 0 0.13rem 0.13rem 0;
+}
+
+.cal-nav-up::before   { transform: translateY(0.13rem) rotate(225deg); }
+.cal-nav-down::before { transform: translateY(-0.13rem) rotate(45deg); }
 
 .cal-nav-btn:hover {
     border-color: var(--color-accent);
