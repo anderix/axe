@@ -173,6 +173,14 @@ This is a deploy-tracking stamp, not a strict semver contract; git remains the s
 
 While iterating, the working copy carries a `-dev` suffix (for example `0.4.1-dev`). This is deliberate: `anderix.com` runs the working copy via the symlink and gets deployed often, ahead of the last stable release that other sites vendor. The `-dev` suffix keeps the stamp honest — a site reporting `0.4.1-dev` is bleeding-edge, one reporting `0.4.0` is the last release. When a change is stable enough to push everywhere, drop the suffix (`0.4.1`) and re-vendor the files into each consuming project in the same pass.
 
+### 0.5.0-dev (2026-06-10)
+
+Completes the component-owned toolbar and the full view set. The calendar now renders one persistent toolbar above a scrolling view body — Today with a direction arrow, prev/next navigation, a clickable title that opens a date picker, the view tabs, declarative host actions, and the theme toggle — and the host supplies only the feed and any custom controls (via `getToolbarSlot()`). On a narrow screen the right cluster collapses into a hamburger and the list becomes the default. Navigation is wired to the wheel (paging the month, scrolling the list) and the keyboard (PageUp/PageDown page, Home jumps to today).
+
+Adds the Day and Week time-grid views, so the set is now Day, Week, Month, and List. Both render a 24-hour vertical grid with the hours in a left gutter, timed events positioned by start and end and split into side-by-side columns when they overlap, all-day and multi-day events on a header strip above the grid, and a live current-time line on today's column. The two views share one renderer over a different day list (one column versus seven). Day and Week page along the horizontal axis — the same two nav chevrons re-point left and right — and their title-click picker offers a day grid rather than the month grid Month and List use; the wheel scrolls the hours rather than paging.
+
+Fixes a list-view bug where a single unbreakable token (a long URL in a description) could force an event card wider than the viewport, which — because a vertical scroll container also accepts horizontal scrolling — let the list pan sideways on a touch swipe. Event cards now shrink to the available width and break long tokens, and the scrolling views lock their horizontal axis.
+
 ### 0.4.1-dev (2026-06-10)
 
 Promotes the calendar's categorical event colors to brand tokens (`--cal-cat-hue`, `--cal-cat-saturation`, `--cal-cat-lightness`), so the chip and bar palette is now fully brand-overridable — the last hard-coded color values in the component. Defaults match the previous look, so no rendered calendar changes.

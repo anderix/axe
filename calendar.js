@@ -1,5 +1,5 @@
 /* ============================================================
-   AXE CALENDAR v0.4.1-dev
+   AXE CALENDAR v0.5.0-dev
    An RFC 5545 (iCalendar) renderer for axe.
 
    The universal viewer renders .ics/.ical with this engine the
@@ -931,18 +931,21 @@ function shiftMonth(cur, delta) {
 //      trivial at month scale and identical in spirit to Google/Teams.
 //   4. Lanes >= MONTH_MAX_LANES are not drawn; each day they cover adds
 //      one to that day's "+N more" count.
-function packWeek(segs) {
+//
+// Generalized to any column count so the Day/Week all-day strips reuse it
+// (1 and 7 columns); the month grid passes 7.
+function packSegs(segs, ncols) {
     segs.sort((a, b) =>
         (b.c1 - b.c0) - (a.c1 - a.c0) ||
         a.c0 - b.c0 ||
         a.sortKey - b.sortKey ||
         (a.ev.uid < b.ev.uid ? -1 : 1));
 
-    const occ = [];   // occ[lane] = boolean[7]
+    const occ = [];   // occ[lane] = boolean[ncols]
     for (const seg of segs) {
         let lane = 0;
         for (;;) {
-            if (!occ[lane]) occ[lane] = [false, false, false, false, false, false, false];
+            if (!occ[lane]) occ[lane] = new Array(ncols).fill(false);
             let free = true;
             for (let c = seg.c0; c <= seg.c1 && free; c++) if (occ[lane][c]) free = false;
             if (free) {
@@ -956,13 +959,13 @@ function packWeek(segs) {
     return segs;
 }
 
-// Clip an event's [startKey..endKey] span to a week's 7 day keys.
-// Returns null if the event doesn't touch this week.
-function clipToWeek(startKey, endKey, weekKeys) {
-    const ws = weekKeys[0], we = weekKeys[6];
+// Clip an event's [startKey..endKey] span to a run of day keys (a month week,
+// or the Day/Week visible window). Returns null if it doesn't touch the run.
+function clipToDays(startKey, endKey, dayKeys) {
+    const ws = dayKeys[0], we = dayKeys[dayKeys.length - 1];
     if (endKey < ws || startKey > we) return null;
-    const c0 = startKey <= ws ? 0 : weekKeys.indexOf(startKey);
-    const c1 = endKey >= we ? 6 : weekKeys.indexOf(endKey);
+    const c0 = startKey <= ws ? 0 : dayKeys.indexOf(startKey);
+    const c1 = endKey >= we ? dayKeys.length - 1 : dayKeys.indexOf(endKey);
     return { c0, c1, clipStart: startKey < ws, clipEnd: endKey > we };
 }
 
@@ -993,7 +996,7 @@ function barLabel(ev, seg, zone) {
     return label;
 }
 
-function makeBar(ev, seg, zone, cal) {
+function makeBar(ev, seg, zone, cal, rowBase) {
     // A single-day timed event renders as a transparent dot+time chip; all-day
     // events AND multi-day events (timed or not) render as a filled bar, so a
     // campout that runs Fri–Sun actually looks like it spans. "Multi-day"
@@ -1012,7 +1015,7 @@ function makeBar(ev, seg, zone, cal) {
     else bar.classList.add('is-plain');
 
     bar.style.gridColumn = (seg.c0 + 1) + ' / ' + (seg.c1 + 2);
-    bar.style.gridRow = String(seg.lane + 2);
+    bar.style.gridRow = String(seg.lane + (rowBase == null ? 2 : rowBase));
     bar.textContent = barLabel(ev, seg, zone);
     bar.title = bar.textContent + (ev.location ? ' · ' + ev.location : '');
     bar.addEventListener('click', () => cal._handleEventClick(ev, bar));
@@ -1129,10 +1132,10 @@ function renderMonth(events, container, cal) {
         // Build, pack, and draw this week's segments.
         const segs = [];
         for (const r of ranges) {
-            const clip = clipToWeek(r.startKey, r.endKey, weekKeys);
+            const clip = clipToDays(r.startKey, r.endKey, weekKeys);
             if (clip) segs.push(Object.assign({ ev: r.ev, sortKey: r.sortKey }, clip));
         }
-        packWeek(segs);
+        packSegs(segs, 7);
 
         const more = [0, 0, 0, 0, 0, 0, 0];
         for (const seg of segs) {
@@ -1172,6 +1175,227 @@ function renderMonthStack(events, container, cal, gridStart, numWeeks) {
         return;
     }
     renderList(inRange, container, cal);
+}
+
+
+// ============================================================
+// Day & Week views (time grid)
+//
+// One vertical hour grid per visible day: 24 hour rows, timed events placed
+// absolutely by start/end, overlapping events split into side-by-side columns.
+// All-day and multi-day events ride a header strip above the grid (the same
+// lane-packed bars the month uses). A live line marks the current time on
+// today's column. Day = 1 column, Week = 7 — the same renderer with a
+// different day list. Wheel scrolls the hours natively (navModel 'scroll');
+// prev/next page the day or week, on the horizontal nav axis (‹ ›).
+// ============================================================
+
+var HOUR_PX = 48;                  // pixel height of one hour
+var TG_DEFAULT_HOUR = 7;           // scroll target when today's "now" isn't shown
+
+function dayCursor(cal) {
+    if (!cal._dayCursor) cal._dayCursor = tz.todayKey(cal.timezone);
+    return cal._dayCursor;
+}
+
+function weekStartOf(cal) {
+    return (cal.opts.weekStart != null) ? cal.opts.weekStart : 0;   // 0 = Sunday
+}
+
+// The 7 day keys of the week containing dayKey, honoring weekStart.
+function weekKeysFor(dayKey, weekStart) {
+    const off = (weekdayOf(dayKey) - weekStart + 7) % 7;
+    const start = tz.addDays(dayKey, -off);
+    const keys = [];
+    for (let i = 0; i < 7; i++) keys.push(tz.addDays(start, i));
+    return keys;
+}
+
+// "Jun 8 – 14, 2026" / "Jun 29 – Jul 5, 2026" / spanning years spelled out.
+function weekRangeLabel(a, b) {
+    if (a.slice(0, 4) !== b.slice(0, 4)) {
+        const f = { month: 'short', day: 'numeric', year: 'numeric' };
+        return tz.dayLabel(a, f) + ' – ' + tz.dayLabel(b, f);
+    }
+    const year = a.slice(0, 4);
+    if (a.slice(5, 7) !== b.slice(5, 7)) {
+        return tz.dayLabel(a, { month: 'short', day: 'numeric' })
+            + ' – ' + tz.dayLabel(b, { month: 'short', day: 'numeric' }) + ', ' + year;
+    }
+    return tz.dayLabel(a, { month: 'short' }) + ' ' + (+a.slice(8, 10))
+        + ' – ' + (+b.slice(8, 10)) + ', ' + year;
+}
+
+// Side-by-side column layout for one day's timed events. Each item carries
+// startMin/endMin (minutes from midnight). Greedy interval coloring grouped by
+// overlap cluster: an item gets { col, ncols } and draws at left = col/ncols,
+// width = 1/ncols. The standard Google/Teams day-column algorithm.
+function layoutDayColumns(items) {
+    items.sort((a, b) => a.startMin - b.startMin || b.endMin - a.endMin);
+    let cols = [];          // cols[c] = endMin of the last item placed in column c
+    let group = [];         // current overlap cluster
+    let groupEnd = -1;
+    const finish = () => {
+        for (const it of group) it.ncols = cols.length;
+        group = []; cols = []; groupEnd = -1;
+    };
+    for (const it of items) {
+        if (group.length && it.startMin >= groupEnd) finish();
+        let placed = false;
+        for (let c = 0; c < cols.length; c++) {
+            if (cols[c] <= it.startMin) { cols[c] = it.endMin; it.col = c; placed = true; break; }
+        }
+        if (!placed) { it.col = cols.length; cols.push(it.endMin); }
+        group.push(it);
+        groupEnd = Math.max(groupEnd, it.endMin);
+    }
+    if (group.length) finish();
+    return items;
+}
+
+function makeTimedEvent(it, zone, cal) {
+    const ev = it.ev;
+    const el = elem('button', 'cal-tg-event');
+    const sc = statusClass(ev.status);
+    if (sc) el.classList.add(sc);
+    if (ev.categories.length) el.style.setProperty('--bar-hue', categoryHue(ev.categories[0]));
+    else el.classList.add('is-plain');
+
+    el.style.top = (it.startMin / 60 * HOUR_PX) + 'px';
+    el.style.height = Math.max((it.endMin - it.startMin) / 60 * HOUR_PX, 15) + 'px';
+    const n = it.ncols || 1, c = it.col || 0;
+    el.style.left = 'calc(' + (c / n * 100) + '% + 1px)';
+    el.style.width = 'calc(' + (100 / n) + '% - 3px)';
+
+    const s = tz.resolve(ev.dtstart, zone);
+    el.appendChild(elem('span', 'cal-tg-time', tz.timeLabel(s.hour, s.minute)));
+    el.appendChild(elem('span', 'cal-tg-title', ev.summary || '(untitled)'));
+    el.title = (ev.summary || '(untitled)') + ' · ' + tz.timeLabel(s.hour, s.minute)
+        + (ev.location ? ' · ' + ev.location : '');
+    el.addEventListener('click', () => cal._handleEventClick(ev, el));
+    return el;
+}
+
+// Place (or reposition) the current-time line at today's wall clock.
+function placeNowLine(cal, line) {
+    const p = tz.partsInZone(new Date(), cal.timezone);
+    line.style.top = ((p.hour * 60 + p.minute) / 60 * HOUR_PX) + 'px';
+}
+
+function renderTimeGrid(events, container, cal, dayKeys) {
+    closePopover(cal);
+    container.classList.remove('cal-list-fill', 'cal-month-fill');
+    container.classList.add('cal-tg-fill');
+
+    const zone = cal.timezone;
+    const ncols = dayKeys.length;
+    container.style.setProperty('--tg-ncols', ncols);
+    container.style.setProperty('--tg-hour', HOUR_PX + 'px');
+    const todayKey = tz.todayKey(zone);
+    const rangeStart = dayKeys[0], rangeEnd = dayKeys[ncols - 1];
+    const expanded = expandRecurring(events, rangeStart, rangeEnd);
+
+    // Split: all-day / multi-day → header strip; single-day timed → grid.
+    const stripSegs = [];
+    const timedByCol = dayKeys.map(() => []);
+    for (const ev of expanded) {
+        if (!ev.dtstart) continue;
+        const r = eventDayRange(ev, zone);
+        if (ev.dtstart.allDay || r.startKey !== r.endKey) {
+            const clip = clipToDays(r.startKey, r.endKey, dayKeys);
+            if (clip) stripSegs.push(Object.assign({ ev, sortKey: startSortKey(ev, zone) }, clip));
+            continue;
+        }
+        const idx = dayKeys.indexOf(r.startKey);
+        if (idx < 0) continue;
+        const s = tz.resolve(ev.dtstart, zone);
+        let startMin = s.hour * 60 + s.minute;
+        let endMin = startMin + 60;        // no DTEND → assume an hour
+        if (ev.dtend) {
+            const e = tz.resolve(ev.dtend, zone);
+            endMin = (e.dayKey > r.startKey) ? 1440 : e.hour * 60 + e.minute;
+        }
+        if (endMin <= startMin) endMin = startMin + 30;
+        timedByCol[idx].push({ ev, startMin, endMin });
+    }
+
+    // --- day-name header row (gutter spacer + one head per column) ---
+    const head = elem('div', 'cal-tg-head');
+    head.appendChild(elem('div', 'cal-tg-corner'));
+    const headCols = elem('div', 'cal-tg-cols');
+    for (let i = 0; i < ncols; i++) {
+        const key = dayKeys[i];
+        const h = elem('div', 'cal-tg-dayhead');
+        if (key === todayKey) h.classList.add('is-today');
+        else if (key < todayKey) h.classList.add('is-past');
+        h.appendChild(elem('span', 'cal-tg-dayhead-wd', tz.dayLabel(key, { weekday: 'short' })));
+        const num = elem('span', 'cal-tg-dayhead-num', String(+key.slice(8, 10)));
+        if (key === todayKey) num.classList.add('is-today');
+        h.appendChild(num);
+        headCols.appendChild(h);
+    }
+    head.appendChild(headCols);
+    container.appendChild(head);
+
+    // --- all-day strip (only when something rides it) ---
+    if (stripSegs.length) {
+        packSegs(stripSegs, ncols);
+        const lanes = Math.max(...stripSegs.map(s => s.lane)) + 1;
+        const strip = elem('div', 'cal-tg-allday');
+        strip.appendChild(elem('div', 'cal-tg-allday-label', 'all-day'));
+        const cols = elem('div', 'cal-tg-allday-cols');
+        cols.style.gridTemplateRows = 'repeat(' + lanes + ', 1.4rem)';
+        for (const seg of stripSegs) cols.appendChild(makeBar(seg.ev, seg, zone, cal, 1));
+        strip.appendChild(cols);
+        container.appendChild(strip);
+    }
+
+    // --- scrolling hour grid ---
+    const scroll = elem('div', 'cal-tg-scroll');
+    const grid = elem('div', 'cal-tg-grid');
+    grid.style.height = (24 * HOUR_PX) + 'px';
+
+    const gutter = elem('div', 'cal-tg-gutter');
+    for (let h = 1; h < 24; h++) {       // skip midnight (clipped at the top edge)
+        const lab = elem('div', 'cal-tg-hour', tz.timeLabel(h, 0));
+        lab.style.top = (h * HOUR_PX) + 'px';
+        gutter.appendChild(lab);
+    }
+    grid.appendChild(gutter);
+
+    const cols = elem('div', 'cal-tg-cols');
+    let nowLine = null;
+    for (let i = 0; i < ncols; i++) {
+        const col = elem('div', 'cal-tg-col');
+        if (dayKeys[i] === todayKey) col.classList.add('is-today');
+        else if (dayKeys[i] < todayKey) col.classList.add('is-past');
+        for (const it of layoutDayColumns(timedByCol[i])) {
+            col.appendChild(makeTimedEvent(it, zone, cal));
+        }
+        if (dayKeys[i] === todayKey) {
+            nowLine = elem('div', 'cal-now-line');
+            nowLine.appendChild(elem('span', 'cal-now-dot'));
+            placeNowLine(cal, nowLine);
+            col.appendChild(nowLine);
+        }
+        cols.appendChild(col);
+    }
+    grid.appendChild(cols);
+    scroll.appendChild(grid);
+    container.appendChild(scroll);
+
+    // Tick the now-line once a minute; cleared on the next _draw.
+    if (nowLine) {
+        cal._nowTimer = setInterval(() => placeNowLine(cal, nowLine), 60000);
+    }
+
+    // Land on the current hour (today) or the morning, a quarter down the fold.
+    afterLayout(() => {
+        const p = tz.partsInZone(new Date(), zone);
+        const targetMin = (todayKey >= rangeStart && todayKey <= rangeEnd)
+            ? p.hour * 60 + p.minute : TG_DEFAULT_HOUR * 60;
+        scroll.scrollTop = Math.max(0, targetMin / 60 * HOUR_PX - scroll.clientHeight * 0.25);
+    });
 }
 
 
@@ -1627,6 +1851,7 @@ class Calendar {
         closePopover(this);
         if (this._datePicker) this._closeDatePicker();
         if (this._listObserver) { this._listObserver.disconnect(); this._listObserver = null; }
+        if (this._nowTimer) { clearInterval(this._nowTimer); this._nowTimer = null; }
         if (this._listScroll && this._body) {
             this._body.removeEventListener('scroll', this._listScroll);
             this._listScroll = null;
@@ -1676,6 +1901,7 @@ class Calendar {
         prev.addEventListener('click', () => this._navPrev());
         next.addEventListener('click', () => this._navNext());
         nav.appendChild(prev); nav.appendChild(next);
+        this._nav = nav;
 
         const title = elem('button', 'cal-title');     // click opens the date picker
         title.type = 'button';
@@ -1795,19 +2021,26 @@ class Calendar {
         if (!ref) return;
 
         const pop = elem('div', 'cal-datepicker');
-        let year = ref.year;
         const MN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const render = () => {
+        const todayBtn = () => {
+            const t = elem('button', 'cal-dp-today', 'Today');
+            t.type = 'button';
+            t.addEventListener('click', () => { this._closeDatePicker(); this._navToday(); });
+            return t;
+        };
+        // Month/year picker (Month + List): a 12-month grid with year nav.
+        let year = ref.year;
+        const renderMonths = () => {
             pop.innerHTML = '';
             const head = elem('div', 'cal-dp-head');
             const py = elem('button', 'cal-dp-yearnav', '‹');
-            const yl = elem('span', 'cal-dp-year', String(year));
+            const yl = elem('span', 'cal-dp-label', String(year));
             const ny = elem('button', 'cal-dp-yearnav', '›');
             py.type = ny.type = 'button';
             py.setAttribute('aria-label', 'Previous year');
             ny.setAttribute('aria-label', 'Next year');
-            py.addEventListener('click', () => { year--; render(); });
-            ny.addEventListener('click', () => { year++; render(); });
+            py.addEventListener('click', () => { year--; renderMonths(); });
+            ny.addEventListener('click', () => { year++; renderMonths(); });
             head.appendChild(py); head.appendChild(yl); head.appendChild(ny);
             pop.appendChild(head);
 
@@ -1820,13 +2053,49 @@ class Calendar {
                 grid.appendChild(mb);
             }
             pop.appendChild(grid);
-
-            const today = elem('button', 'cal-dp-today', 'Today');
-            today.type = 'button';
-            today.addEventListener('click', () => { this._closeDatePicker(); this._navToday(); });
-            pop.appendChild(today);
+            pop.appendChild(todayBtn());
         };
-        render();
+        // Day picker (Day + Week): a month-navigable day grid.
+        const weekStart = weekStartOf(this);
+        const todayKey = tz.todayKey(this.timezone);
+        const curKey = ref.year + '-' + tz.pad(ref.month) + '-' + tz.pad(ref.day || 1);
+        let vy = ref.year, vm = ref.month;
+        const renderDays = () => {
+            pop.innerHTML = '';
+            const head = elem('div', 'cal-dp-head');
+            const py = elem('button', 'cal-dp-yearnav', '‹');
+            const yl = elem('span', 'cal-dp-label', MN[vm - 1] + ' ' + vy);
+            const ny = elem('button', 'cal-dp-yearnav', '›');
+            py.type = ny.type = 'button';
+            py.setAttribute('aria-label', 'Previous month');
+            ny.setAttribute('aria-label', 'Next month');
+            py.addEventListener('click', () => { const s = shiftMonth({ year: vy, month: vm }, -1); vy = s.year; vm = s.month; renderDays(); });
+            ny.addEventListener('click', () => { const s = shiftMonth({ year: vy, month: vm }, 1); vy = s.year; vm = s.month; renderDays(); });
+            head.appendChild(py); head.appendChild(yl); head.appendChild(ny);
+            pop.appendChild(head);
+
+            const grid = elem('div', 'cal-dp-days');
+            for (let i = 0; i < 7; i++) {
+                grid.appendChild(elem('span', 'cal-dp-dow',
+                    tz.dayLabel(tz.addDays('2026-03-01', (i + weekStart) % 7), { weekday: 'narrow' })));
+            }
+            const firstKey = vy + '-' + tz.pad(vm) + '-01';
+            const lead = (weekdayOf(firstKey) - weekStart + 7) % 7;
+            const gridStart = tz.addDays(firstKey, -lead);
+            for (let i = 0; i < 42; i++) {
+                const key = tz.addDays(gridStart, i);
+                const db = elem('button', 'cal-dp-day', String(+key.slice(8, 10)));
+                db.type = 'button';
+                if (+key.slice(5, 7) !== vm) db.classList.add('is-outside');
+                if (key === todayKey) db.classList.add('is-today');
+                if (key === curKey) db.classList.add('is-current');
+                db.addEventListener('click', () => this._pickDate(+key.slice(0, 4), +key.slice(5, 7), +key.slice(8, 10)));
+                grid.appendChild(db);
+            }
+            pop.appendChild(grid);
+            pop.appendChild(todayBtn());
+        };
+        if (v.pickerKind === 'day') renderDays(); else renderMonths();
 
         this._datePicker = pop;
         this.container.appendChild(pop);
@@ -1843,10 +2112,10 @@ class Calendar {
         setTimeout(() => document.addEventListener('mousedown', this._dpOutside), 0);
     }
 
-    _pickDate(year, month) {
+    _pickDate(year, month, day) {
         this._closeDatePicker();
         const v = this._activeView();
-        if (v.goTo) v.goTo(this, year, month);
+        if (v.goTo) v.goTo(this, year, month, day);
         this._syncToolbar();
     }
 
@@ -1897,11 +2166,15 @@ class Calendar {
         }
         const v = this._activeView();
         if (this._titleEl) this._titleEl.textContent = v.title ? v.title(this) : '';
+        // Nav axis: Month/List page up/down (⌃⌄); Day/Week page left/right (‹›).
+        // The CSS re-rotates the same two chevrons.
+        if (this._nav) this._nav.classList.toggle('is-horizontal', v.navAxis === 'horizontal');
         if (this._todayArrow) {
             const dir = v.todayDir ? v.todayDir(this) : null;
             // Always a glyph in a fixed-width slot, so the button never resizes:
-            // ↑/↓ point toward today when it's off-screen, ● marks "you're there".
-            this._todayArrow.textContent = dir === 'up' ? '↑' : (dir === 'down' ? '↓' : '●');
+            // arrows point toward today when it's off-screen, ● marks "you're there".
+            const glyph = { up: '↑', down: '↓', left: '←', right: '→' }[dir] || '●';
+            this._todayArrow.textContent = glyph;
         }
     }
 
@@ -1979,6 +2252,52 @@ class Calendar {
 // nav model (how it moves through time — drives the wheel/keyboard in later
 // slices). Registry order is tab order.
 Calendar.views = {
+    day: {
+        label: 'Day', render(events, c, cal) { renderTimeGrid(events, c, cal, [dayCursor(cal)]); },
+        navModel: 'scroll', navAxis: 'horizontal', pickerKind: 'day',
+        title(cal) {
+            return tz.dayLabel(dayCursor(cal), { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        },
+        today(cal) { cal._dayCursor = tz.todayKey(cal.timezone); cal._draw(); },
+        prev(cal) { cal._dayCursor = tz.addDays(dayCursor(cal), -1); cal._draw(); },
+        next(cal) { cal._dayCursor = tz.addDays(dayCursor(cal), 1); cal._draw(); },
+        todayDir(cal) {
+            const t = tz.todayKey(cal.timezone), d = dayCursor(cal);
+            return d > t ? 'left' : (d < t ? 'right' : null);
+        },
+        goTo(cal, year, month, day) {
+            cal._dayCursor = year + '-' + tz.pad(month) + '-' + tz.pad(day || 1); cal._draw();
+        },
+        pickerRef(cal) {
+            const d = dayCursor(cal);
+            return { year: +d.slice(0, 4), month: +d.slice(5, 7), day: +d.slice(8, 10) };
+        },
+    },
+    week: {
+        label: 'Week', render(events, c, cal) { renderTimeGrid(events, c, cal, weekKeysFor(dayCursor(cal), weekStartOf(cal))); },
+        navModel: 'scroll', navAxis: 'horizontal', pickerKind: 'day',
+        title(cal) {
+            const ks = weekKeysFor(dayCursor(cal), weekStartOf(cal));
+            return weekRangeLabel(ks[0], ks[6]);
+        },
+        today(cal) { cal._dayCursor = tz.todayKey(cal.timezone); cal._draw(); },
+        prev(cal) { cal._dayCursor = tz.addDays(dayCursor(cal), -7); cal._draw(); },
+        next(cal) { cal._dayCursor = tz.addDays(dayCursor(cal), 7); cal._draw(); },
+        todayDir(cal) {
+            const ks = weekKeysFor(dayCursor(cal), weekStartOf(cal));
+            const t = tz.todayKey(cal.timezone);
+            if (t < ks[0]) return 'left';
+            if (t > ks[6]) return 'right';
+            return null;
+        },
+        goTo(cal, year, month, day) {
+            cal._dayCursor = year + '-' + tz.pad(month) + '-' + tz.pad(day || 1); cal._draw();
+        },
+        pickerRef(cal) {
+            const d = dayCursor(cal);
+            return { year: +d.slice(0, 4), month: +d.slice(5, 7), day: +d.slice(8, 10) };
+        },
+    },
     month: {
         label: 'Month', render: renderMonth, navModel: 'paged',
         title(cal) {
@@ -2020,7 +2339,7 @@ Calendar.exporters = { csv: exportCsv, ical: exportIcal };
 
 // Version. Keep in sync with the axe.css / calendar.css headers and
 // the --axe-version property; read at runtime via Calendar.version.
-Calendar.version = '0.4.1-dev';
+Calendar.version = '0.5.0-dev';
 
 // Shared internals exposed for the month view (slice 2),
 // exporters (slice 3), and unit tests.

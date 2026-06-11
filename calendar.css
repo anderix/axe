@@ -1,5 +1,5 @@
 /* ============================================================
-   AXE CALENDAR v0.4.1-dev — styles
+   AXE CALENDAR v0.5.0-dev — styles
    Uses axe's required variable contract only. No hard-coded
    colors, fonts, or radii. Mobile-first; min-width to expand.
 
@@ -166,7 +166,7 @@
     margin-bottom: 0.5rem;
 }
 
-.cal-dp-year {
+.cal-dp-label {
     font-weight: 600;
     font-size: 0.95rem;
 }
@@ -209,6 +209,46 @@
 }
 
 .cal-dp-month.is-current {
+    background: var(--color-accent);
+    color: var(--color-surface);
+}
+
+/* Day-grid picker (Day + Week views): a mini month calendar. */
+.cal-dp-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.1rem;
+}
+
+.cal-dp-dow {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    text-align: center;
+    color: var(--color-text-muted);
+    padding-bottom: 0.2rem;
+}
+
+.cal-dp-day {
+    font: inherit;
+    font-size: 0.75rem;
+    aspect-ratio: 1;
+    padding: 0;
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    cursor: pointer;
+}
+
+.cal-dp-day.is-outside { color: var(--color-text-muted); opacity: 0.5; }
+
+.cal-dp-day:hover {
+    background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface));
+}
+
+.cal-dp-day.is-today { border-color: var(--color-accent); }
+
+.cal-dp-day.is-current {
     background: var(--color-accent);
     color: var(--color-surface);
 }
@@ -292,6 +332,10 @@
    container; without one it simply flows and the page scrolls instead. */
 .cal-body.cal-list-fill {
     overflow-y: auto;
+    /* Lock the horizontal axis. overflow-y:auto alone leaves overflow-x
+       computing to auto, so any descendant that overflows (a stray wide token)
+       would make the whole list pan sideways on a touch swipe. */
+    overflow-x: hidden;
     /* Prepending older events adjusts scrollTop by hand; let the browser's
        scroll anchoring also compensate and the view double-jumps forward. */
     overflow-anchor: none;
@@ -340,7 +384,10 @@
 /* An event row: a fixed time gutter and a flexible body. */
 .cal-event {
     display: grid;
-    grid-template-columns: 1fr;
+    /* minmax(0, 1fr) — not a bare 1fr — so a long unbreakable token (a URL in
+       a description) can't force the column wider than the list and turn it
+       into a horizontally swipeable area. */
+    grid-template-columns: minmax(0, 1fr);
     gap: 0.15rem 1rem;
     max-width: none;
     margin: 0;
@@ -377,6 +424,8 @@
 .cal-event-title {
     font-weight: 600;
     font-size: 0.95rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .cal-event-title a {
@@ -392,12 +441,14 @@
 .cal-event-location {
     font-size: 0.85rem;
     color: var(--color-text-muted);
+    overflow-wrap: anywhere;
 }
 
 .cal-event-desc {
     font-size: 0.88rem;
     color: var(--color-text-muted);
     margin: 0.25rem 0 0;
+    overflow-wrap: anywhere;
 }
 
 .cal-event-desc.is-clamped {
@@ -489,6 +540,12 @@
 
 .cal-nav-up::before   { transform: translateY(0.13rem) rotate(225deg); }
 .cal-nav-down::before { transform: translateY(-0.13rem) rotate(45deg); }
+
+/* Day/Week page along the horizontal axis: the same two chevrons re-point
+   left (prev) and right (next). The nudge swaps to the X axis so they stay
+   centered. */
+.cal-nav.is-horizontal .cal-nav-up::before   { transform: translateX(0.13rem) rotate(135deg); }
+.cal-nav.is-horizontal .cal-nav-down::before { transform: translateX(-0.13rem) rotate(315deg); }
 
 .cal-nav-btn:hover {
     border-color: var(--color-accent);
@@ -698,6 +755,212 @@
 }
 
 
+/* --- Day & Week views (time grid) ------------------------- */
+
+/* The body becomes a flex column: the day-name header and the all-day strip
+   pin at the top while the hour grid scrolls beneath them. A min-height keeps
+   an auto-height embed from collapsing the scroll area to nothing; a bounded
+   host (the viewer, troop99) overrides it via flex. */
+.cal-body.cal-tg-fill {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* The gutter width is shared by the header, the all-day strip, and the grid so
+   the day columns line up across all three. */
+.cal-tg-fill { --tg-gutter: 3.5rem; }
+
+.cal-tg-head,
+.cal-tg-allday {
+    display: grid;
+    grid-template-columns: var(--tg-gutter) minmax(0, 1fr);
+    flex-shrink: 0;
+}
+
+.cal-tg-cols,
+.cal-tg-allday-cols {
+    display: grid;
+    grid-template-columns: repeat(var(--tg-ncols, 1), minmax(0, 1fr));
+}
+
+.cal-tg-corner { border-bottom: 1px solid var(--color-border); }
+
+.cal-tg-dayhead {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0 0.45rem;
+    border-bottom: 1px solid var(--color-border);
+    border-left: 1px solid var(--color-border);
+}
+
+.cal-tg-dayhead-wd {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+}
+
+.cal-tg-dayhead.is-today .cal-tg-dayhead-wd { color: var(--color-accent); }
+.cal-tg-dayhead.is-past { opacity: 0.7; }
+
+.cal-tg-dayhead-num {
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    font-weight: 600;
+}
+
+/* Today's date sits in an accent badge, echoing the month grid. */
+.cal-tg-dayhead-num.is-today {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    height: 1.5rem;
+    padding: 0 0.3rem;
+    border-radius: 999px;
+    background: var(--color-accent);
+    color: var(--color-surface);
+}
+
+/* All-day strip: a label in the gutter, lane-packed bars in the columns. */
+.cal-tg-allday {
+    border-bottom: 1px solid var(--color-border);
+    max-height: 6rem;
+    overflow-y: auto;
+}
+
+.cal-tg-allday-label {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+    padding: 0.35rem 0.4rem 0;
+    text-align: right;
+}
+
+.cal-tg-allday-cols {
+    gap: 1px 0;
+    padding: 0.25rem 0;
+}
+
+/* All-day bars reuse the month .cal-bar look but sit in their own rows. */
+.cal-tg-allday-cols .cal-bar {
+    margin: 0 1px;
+}
+
+/* The scroll viewport and the absolutely-positioned hour grid inside it. */
+.cal-tg-scroll {
+    flex: 1;
+    min-height: 18rem;
+    overflow-y: auto;
+    overflow-x: hidden;     /* lock the horizontal axis (see .cal-list-fill) */
+    overflow-anchor: none;
+}
+
+.cal-tg-grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: var(--tg-gutter) minmax(0, 1fr);
+}
+
+/* Hour labels in the gutter, each pinned to its line. */
+.cal-tg-gutter { position: relative; }
+
+.cal-tg-hour {
+    position: absolute;
+    right: 0.4rem;
+    transform: translateY(-50%);
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+}
+
+/* Day columns: horizontal hour lines drawn as a background gradient so they
+   stay crisp at any height; a left divider separates the columns. */
+.cal-tg-grid .cal-tg-cols { position: relative; }
+
+.cal-tg-col {
+    position: relative;
+    border-left: 1px solid var(--color-border);
+    background: repeating-linear-gradient(
+        to bottom,
+        var(--color-border) 0, var(--color-border) 1px,
+        transparent 1px, transparent var(--tg-hour, 48px));
+}
+
+.cal-tg-col.is-past { background-color: color-mix(in srgb, var(--color-text-muted) 6%, transparent); }
+.cal-tg-col.is-today { background-color: color-mix(in srgb, var(--color-accent) 5%, transparent); }
+
+/* A timed event: an accent-tinted block, positioned by inline top/height/left
+   /width. The category hue tints it the same way the month chips tint. */
+.cal-tg-event {
+    position: absolute;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 0.05rem;
+    padding: 0.15rem 0.35rem;
+    font: inherit;
+    font-size: 0.7rem;
+    text-align: left;
+    line-height: 1.2;
+    color: var(--color-text);
+    background: color-mix(in srgb, hsl(var(--bar-hue, 200) 60% 50%) 18%, var(--color-surface));
+    border-left: 3px solid hsl(var(--bar-hue, 200) 60% 42%);
+    border-radius: var(--radius);
+    cursor: pointer;
+}
+
+.cal-tg-event.is-plain {
+    background: color-mix(in srgb, var(--color-accent) 16%, var(--color-surface));
+    border-left-color: var(--color-accent);
+}
+
+.cal-tg-event:hover { filter: brightness(1.05); }
+.cal-tg-event.is-tentative { border-left-style: dashed; }
+.cal-tg-event.is-cancelled { opacity: 0.55; text-decoration: line-through; }
+
+.cal-tg-time {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    color: var(--color-text-muted);
+}
+
+.cal-tg-title {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* The current-time line across today's column. */
+.cal-now-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 0;
+    border-top: 2px solid var(--color-danger, #d23b3b);
+    z-index: 3;
+    pointer-events: none;
+}
+
+.cal-now-dot {
+    position: absolute;
+    left: -4px;
+    top: -4px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--color-danger, #d23b3b);
+}
+
+
 /* --- "+N more" day popover -------------------------------- */
 
 .cal-popover {
@@ -895,7 +1158,7 @@
 @media (min-width: 601px) {
     /* Time becomes a left gutter beside the event body. */
     .cal-event {
-        grid-template-columns: 7.5rem 1fr;
+        grid-template-columns: 7.5rem minmax(0, 1fr);
     }
 
     .cal-event-time {

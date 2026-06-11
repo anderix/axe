@@ -1,5 +1,5 @@
 /* ============================================================
-   AXE v0.4.1-dev
+   AXE v0.5.0-dev
    Semantic-first. Classless defaults.
    Write plain HTML. It looks good.
 
@@ -11,7 +11,7 @@
    calendar.css / calendar.js. Audit a deployment with
    `curl <site>/axe/axe.css | head`, or read --axe-version in devtools. */
 :root {
-    --axe-version: "0.4.1-dev";
+    --axe-version: "0.5.0-dev";
 }
 
 
