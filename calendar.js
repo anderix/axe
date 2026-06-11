@@ -2314,7 +2314,12 @@ Calendar.views = {
         label: 'Day', render(events, c, cal) { renderTimeGrid(events, c, cal, [dayCursor(cal)]); },
         navModel: 'scroll', navAxis: 'horizontal', pickerKind: 'day', swipeNav: true,
         title(cal) {
-            return tz.dayLabel(dayCursor(cal), { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+            // A narrow nav bar can't fit the long weekday + month without
+            // wrapping, so drop the weekday and abbreviate the month there.
+            const narrow = typeof window !== 'undefined' && window.innerWidth < MONTH_NARROW_PX;
+            return tz.dayLabel(dayCursor(cal), narrow
+                ? { month: 'short', day: 'numeric', year: 'numeric' }
+                : { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
         },
         today(cal) { cal._dayCursor = tz.todayKey(cal.timezone); cal._draw(); },
         prev(cal) { cal._dayCursor = tz.addDays(dayCursor(cal), -1); cal._draw(); },
