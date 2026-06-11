@@ -670,7 +670,15 @@ function renderList(events, container, cal) {
     // Anchor on the date-picker's month if set, else today / first upcoming
     // day; if all events are past, anchor on the most recent day. The
     // is-today / is-past marking always uses the real today.
-    cal._listToday = today;
+    //
+    // The Today arrow points toward the day the Today button lands on — today,
+    // or the next upcoming day when today itself has no events — and hides when
+    // that day is on screen, regardless of any date-picker anchor. (Comparing
+    // the literal date instead would leave the arrow up after a Today click,
+    // since today sits above the next event it scrolled to.)
+    const todayTargetIdx = days.findIndex(([k]) => k >= today);
+    cal._listToday = todayTargetIdx === -1 ? days[days.length - 1][0]
+                                           : days[todayTargetIdx][0];
     const anchorKey = cal._listAnchor || today;
     let anchorIdx = days.findIndex(([k]) => k >= anchorKey);
     const allPast = anchorIdx === -1;
@@ -1646,8 +1654,11 @@ class Calendar {
         todayBtn.addEventListener('click', () => this._navToday());
 
         const nav = elem('div', 'cal-nav');
-        const prev = elem('button', 'cal-nav-btn', '⌃');   // chevron up
-        const next = elem('button', 'cal-nav-btn', '⌄');   // chevron down
+        // Solid triangles, not the ⌃⌄ arrowheads: those render off-center
+        // (one high, one low) and read small. Triangles sit dead-center and
+        // are unambiguous. aria-label carries the meaning either way.
+        const prev = elem('button', 'cal-nav-btn', '▲');   // prev (up)
+        const next = elem('button', 'cal-nav-btn', '▼');   // next (down)
         prev.type = 'button'; next.type = 'button';
         prev.setAttribute('aria-label', 'Previous');
         next.setAttribute('aria-label', 'Next');

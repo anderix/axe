@@ -67,7 +67,8 @@
 }
 
 .cal-today-arrow {
-    font-size: 0.9em;
+    font-size: 1.2em;
+    font-weight: 700;
     line-height: 1;
 }
 
@@ -409,12 +410,20 @@
 
 /* --- Month grid view -------------------------------------- */
 
-/* Toolbar prev/next chevrons (formerly the month header's nav buttons). */
+/* Toolbar prev/next chevrons (formerly the month header's nav buttons).
+   Fixed-size, flex-centered squares so the glyph sits dead-center and both
+   buttons read at the same level. */
 .cal-nav-btn {
     font-family: inherit;
-    font-size: 0.85rem;
+    font-size: 1.15rem;
+    font-weight: 700;
     line-height: 1;
-    padding: 0.4rem 0.65rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
     background: var(--color-surface);
     color: var(--color-text);
     border: 1px solid var(--color-border);
