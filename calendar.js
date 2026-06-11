@@ -547,7 +547,11 @@ function expandOne(ev, rangeStartKey, rangeEndKey) {
     const out = [];
     for (const k of generateOccurrences(rule, seedKey, hardStop, rule.count || null)) {
         if (exset.has(k)) continue;                      // EXDATE removes the instance
-        if (k < rangeStartKey || k > rangeEndKey) continue;
+        // Keep an occurrence when it OVERLAPS the window, not only when its
+        // start falls inside: a multi-day occurrence (a repeating campout) can
+        // begin the day before rangeStart yet still ride into view.
+        const occEndKey = dayDelta > 0 ? tz.addDays(k, dayDelta) : k;
+        if (occEndKey < rangeStartKey || k > rangeEndKey) continue;
         out.push(cloneOccurrence(ev, k, timePart, dayDelta, endTimePart, !!ev.dtend));
     }
     return out;
@@ -569,9 +573,13 @@ function expandRecurring(events, rangeStartKey, rangeEndKey) {
 // DOM helpers
 // ============================================================
 
+// Escape for both element text and double-quoted attribute values: linkify
+// builds href="..." out of escaped event text, so " and ' must be escaped too
+// or a quote in a feed's URL/description breaks out of the attribute.
 function escHtml(s) {
     return String(s == null ? '' : s)
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function elem(tag, cls, text) {
@@ -1104,7 +1112,6 @@ function renderMonth(events, container, cal) {
             const cell = elem('div', 'cal-cell');
             if (!inMonth) cell.classList.add('is-outside');
             if (dayKey === todayKey) cell.classList.add('is-today');
-            else if (dayKey < todayKey) cell.classList.add('is-past');
             cell.style.gridColumn = String(c + 1);
             cell.style.gridRow = '1 / -1';
             weekEl.appendChild(cell);
@@ -1416,6 +1423,10 @@ function renderTimeGrid(events, container, cal, dayKeys) {
     // for the strip's sticky offset. On a narrow Week, also bring today's
     // column into view horizontally.
     afterLayout(() => {
+        // Bail if a newer render already replaced this grid: the 32ms backstop
+        // can fire after a fast resize / view switch detached our scroller, and
+        // a stale --tg-headh must not be written onto the persistent body.
+        if (!scroll.isConnected) return;
         container.style.setProperty('--tg-headh', (headCols.offsetHeight || 0) + 'px');
         const p = tz.partsInZone(new Date(), zone);
         const targetMin = (todayKey >= rangeStart && todayKey <= rangeEnd)
@@ -1856,13 +1867,12 @@ class Calendar {
         // Re-draw on resize (debounced): the month grid swaps to/from the
         // narrow day-stack and recomputes its visible-lane count from the
         // new height. Bound once.
-        if (!this._resizeBound && typeof window !== 'undefined') {
-            this._resizeBound = true;
-            let t = null;
-            window.addEventListener('resize', () => {
-                if (t) clearTimeout(t);
-                t = setTimeout(() => this._draw(), 150);
-            });
+        if (!this._resizeHandler && typeof window !== 'undefined') {
+            this._resizeHandler = () => {
+                if (this._resizeTimer) clearTimeout(this._resizeTimer);
+                this._resizeTimer = setTimeout(() => this._draw(), 150);
+            };
+            window.addEventListener('resize', this._resizeHandler);
         }
         let text = this.opts.source;
         if (this.opts.url != null) {
@@ -2301,6 +2311,33 @@ class Calendar {
     _handleEventClick(event, anchorEl) {
         if (this.onEventClick) this.onEventClick(event);
         else openEventPopover(this, event, anchorEl);
+    }
+
+    // Tear the calendar down: stop the now-line ticker, disconnect the list
+    // observer, and drop every listener (resize, scroll, and the document-level
+    // outside-click handlers behind popovers / the menu / the date picker), then
+    // empty the container. For a host that mounts and unmounts the calendar
+    // (an SPA route), call this before discarding it so nothing keeps ticking
+    // or holds the instance alive. Static page-lifetime embeds never need it.
+    destroy() {
+        closePopover(this);
+        this._closeDatePicker();
+        this._closeMenu();
+        if (this._nowTimer) { clearInterval(this._nowTimer); this._nowTimer = null; }
+        if (this._listObserver) { this._listObserver.disconnect(); this._listObserver = null; }
+        if (this._wheelQuiet) { clearTimeout(this._wheelQuiet); this._wheelQuiet = null; }
+        if (this._resizeTimer) { clearTimeout(this._resizeTimer); this._resizeTimer = null; }
+        if (this._resizeHandler && typeof window !== 'undefined') {
+            window.removeEventListener('resize', this._resizeHandler);
+            this._resizeHandler = null;
+        }
+        if (this._listScroll && this._body) {
+            this._body.removeEventListener('scroll', this._listScroll);
+            this._listScroll = null;
+        }
+        this.container.innerHTML = '';
+        this.container.classList.remove('axe-cal');
+        this._body = null;
     }
 }
 
