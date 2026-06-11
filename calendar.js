@@ -1683,7 +1683,7 @@ class Calendar {
             const tab = elem('button', 'cal-view-tab', Calendar.views[name].label);
             tab.type = 'button';
             tab.dataset.view = name;
-            tab.addEventListener('click', () => this.switchView(name));
+            tab.addEventListener('click', () => { this.switchView(name); this._closeMenu(); });
             tabs.appendChild(tab);
         }
 
@@ -1698,22 +1698,41 @@ class Calendar {
         bar.appendChild(todayBtn);
         bar.appendChild(nav);
         bar.appendChild(title);
-        bar.appendChild(tabs);
-        bar.appendChild(actions);
 
-        if (this.opts.themeToggle !== false) {    // component-owned sun/moon, far right
+        // Right cluster — view tabs, host actions, theme toggle. Inline on a
+        // wide bar; below the narrow breakpoint it collapses into a hamburger
+        // (CSS), opened by the ☰ button. The chevrons hide on narrow too (a
+        // swipe is the touch gesture for prev/next).
+        const menuWrap = elem('div', 'cal-menu-wrap');
+        const menuToggle = elem('button', 'cal-menu-toggle', '☰');
+        menuToggle.type = 'button';
+        menuToggle.setAttribute('aria-label', 'Menu');
+        menuToggle.setAttribute('aria-expanded', 'false');
+        menuToggle.addEventListener('click', () => this._toggleMenu());
+
+        const menu = elem('div', 'cal-menu');
+        menu.appendChild(tabs);
+        menu.appendChild(actions);
+        if (this.opts.themeToggle !== false) {    // component-owned sun/moon
             const toggle = elem('button', 'theme-toggle', '☼');
             toggle.type = 'button';
             toggle.setAttribute('aria-label', 'Toggle theme');
             toggle.addEventListener('click', () => this._toggleTheme());
-            bar.appendChild(toggle);
+            menu.appendChild(toggle);
         }
+
+        menuWrap.appendChild(menuToggle);
+        menuWrap.appendChild(menu);
+        bar.appendChild(menuWrap);
 
         this.container.appendChild(bar);
         this.container.appendChild(body);
 
         this._bar = bar;
         this._tabs = tabs;
+        this._menu = menu;
+        this._menuToggle = menuToggle;
+        this._menuWrap = menuWrap;
         this._body = body;
         this._titleEl = titleText;
         this._titleBtn = title;
@@ -1743,6 +1762,24 @@ class Calendar {
     // The toolbar's right-side actions container, for hosts that inject custom
     // controls (call after render()). Null when the toolbar is suppressed.
     getToolbarSlot() { return this._actionsSlot || null; }
+
+    // --- Hamburger menu (narrow screens): the right cluster collapses here ---
+    _toggleMenu() {
+        if (!this._menu) return;
+        if (this._menu.classList.contains('is-open')) { this._closeMenu(); return; }
+        this._menu.classList.add('is-open');
+        this._menuToggle.setAttribute('aria-expanded', 'true');
+        this._menuOutside = (e) => {
+            if (this._menuWrap && !this._menuWrap.contains(e.target)) this._closeMenu();
+        };
+        setTimeout(() => document.addEventListener('mousedown', this._menuOutside), 0);
+    }
+
+    _closeMenu() {
+        if (this._menu) this._menu.classList.remove('is-open');
+        if (this._menuToggle) this._menuToggle.setAttribute('aria-expanded', 'false');
+        if (this._menuOutside) { document.removeEventListener('mousedown', this._menuOutside); this._menuOutside = null; }
+    }
 
     // --- Date picker: click the title to jump to a month/year ----
     _toggleDatePicker() {

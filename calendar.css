@@ -22,12 +22,52 @@
     align-items: center;
     gap: 0.5rem;
     margin-bottom: 0.5rem;
+    /* Above the hamburger breakpoint a host with many actions (the viewer
+       injects five) can still outgrow the bar; wrap to a second row rather
+       than clip. Phones collapse to the hamburger before this matters. */
+    flex-wrap: wrap;
 }
 
 .cal-views {
     display: flex;
     gap: 0.25rem;
+}
+
+/* Right cluster (view tabs + actions + theme toggle). The wrap pushes it to
+   the far end and anchors the hamburger dropdown on narrow screens. */
+.cal-menu-wrap {
     margin-left: auto;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.cal-menu {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.cal-menu-toggle {
+    display: none;           /* wide: cluster is inline, no hamburger */
+    font: inherit;
+    font-size: 1.1rem;
+    line-height: 1;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    cursor: pointer;
+}
+
+.cal-menu-toggle:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
 }
 
 .cal-view-tab {
@@ -812,6 +852,41 @@
 
 .cal-pop-open:hover {
     text-decoration: underline;
+}
+
+
+/* --- Narrow / mobile -------------------------------------- */
+
+@media (max-width: 600px) {
+    /* Chevrons give way to a swipe gesture for prev/next. */
+    .cal-nav { display: none; }
+
+    /* The right cluster folds into a hamburger dropdown, anchored under the
+       ☰ button at the top-right of the bar. */
+    .cal-menu-toggle { display: inline-flex; }
+
+    .cal-menu {
+        position: absolute;
+        top: calc(100% + 6px);
+        right: 0;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.6rem;
+        min-width: 12rem;
+        padding: 0.7rem;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-md);
+        z-index: 60;
+    }
+
+    .cal-menu:not(.is-open) { display: none; }
+
+    /* Tabs split the width evenly; actions and the toggle stack full-width. */
+    .cal-menu .cal-view-tab { flex: 1; }
+    .cal-menu .cal-actions { flex-direction: column; align-items: stretch; }
+    .cal-menu .theme-toggle { align-self: center; }
 }
 
 
