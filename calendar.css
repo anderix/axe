@@ -1227,9 +1227,12 @@
     /* Narrow Week: seven columns won't fit, so give each a fixed width and let
        the body scroll horizontally past the frozen gutter and header. Day
        (single column, no .cal-tg-multi) keeps the 1fr fill and never scrolls
-       sideways. */
+       sideways. The table must grow to its content width (not clamp to the
+       viewport) so the sticky gutter's containing block spans the whole scroll
+       extent — otherwise the frozen column scrolls off past the table's edge. */
     .cal-tg-multi .cal-tg-table {
         grid-template-columns: var(--tg-gutter) max-content;
+        width: max-content;
     }
 
     .cal-tg-multi .cal-tg-headcols,

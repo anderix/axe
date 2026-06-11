@@ -185,6 +185,12 @@ Reworks the Day and Week time grid into a single sticky scroller so a narrow Wee
 
 Fixes a related bug where switching from Day or Week back to Month or List left scrolling dead. The body element persists across view changes, and the time grid's `overflow: hidden` was lingering on it because each renderer only cleaned up after some of the others. Clearing every view's layout class in one place before each draw makes the next view's own scrolling reliable regardless of where you came from.
 
+Fixes the frozen hour gutter scrolling away on a narrow Week. `position: sticky` clamps an element to its containing block, and the grid container had collapsed to the viewport width while its columns overflowed it — so the gutter could only stay pinned across the table's own narrow width, then slid off with the rest. Letting the table grow to its content width on the narrow path gives the sticky gutter and header the full scroll extent to hold against.
+
+Adds a horizontal swipe to the Day view to page to the adjacent day — swipe left for the next day, right for the previous — since the prev/next chevrons hide on a narrow screen. A view opts in with a `swipeNav` flag, so Week (where a horizontal swipe scrolls its day columns) is deliberately left out. The swipe commits only to a clear, dominantly-horizontal gesture, so a vertical hour-scroll never pages.
+
+Makes the narrow month fallback a clean single month. The small-screen stand-in for the month grid is a day-grouped list; it now expands recurrence only within the displayed month and emits only that month's days, instead of borrowing the List view's infinite, today-anchored feed. That drops both the leading and trailing days that pad the wide six-week grid and any out-of-month occurrences of a recurring series, so the list reads as exactly the month its title names.
+
 ### 0.4.1-dev (2026-06-10)
 
 Promotes the calendar's categorical event colors to brand tokens (`--cal-cat-hue`, `--cal-cat-saturation`, `--cal-cat-lightness`), so the chip and bar palette is now fully brand-overridable — the last hard-coded color values in the component. Defaults match the previous look, so no rendered calendar changes.

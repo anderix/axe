@@ -1038,7 +1038,7 @@ function renderMonth(events, container, cal) {
     // the breakpoint we render the visible month as a day stack instead.
     const narrow = typeof window !== 'undefined' && window.innerWidth < MONTH_NARROW_PX;
     if (narrow) {
-        renderMonthStack(events, container, cal, gridStart, numWeeks);
+        renderMonthStack(events, container, cal);
         return;
     }
 
@@ -1157,21 +1157,41 @@ function renderMonth(events, container, cal) {
 }
 
 // Narrow-screen month: a day-grouped stack for the visible weeks.
-function renderMonthStack(events, container, cal, gridStart, numWeeks) {
+// Narrow fallback for the month grid: the events of one month as a day-grouped
+// list, top to bottom. Unlike the List view (an infinite, today-anchored feed),
+// this is bounded to the displayed month — recurrence is expanded only within
+// the month window and only in-month days are emitted, so it reads as a clean
+// single month with no leading/trailing grid-padding days and no out-of-month
+// occurrences of a recurring series. (The wide grid keeps those, as outside-day
+// cells and spanning bars; this is the small-screen stand-in.)
+function renderMonthStack(events, container, cal) {
+    container.classList.add('cal-list-fill');
     const zone = cal.timezone;
-    const rangeStart = gridStart;
-    const rangeEnd = tz.addDays(gridStart, numWeeks * 7 - 1);
+    const cur = monthCursor(cal);
+    const monthStart = cur.year + '-' + tz.pad(cur.month) + '-01';
+    const monthEnd = cur.year + '-' + tz.pad(cur.month) + '-' + tz.pad(daysInMonth(cur.year, cur.month));
+    const today = tz.todayKey(zone);
 
-    const inRange = events.filter(ev => {
-        const r = eventDayRange(ev, zone);
-        return !(r.endKey < rangeStart || r.startKey > rangeEnd);
-    });
+    const wrap = elem('div', 'cal-list');
+    container.appendChild(wrap);
 
-    if (!inRange.length) {
-        container.appendChild(elem('p', 'cal-empty', 'No events this month.'));
+    const groups = new Map();
+    for (const ev of expandRecurring(events, monthStart, monthEnd)) {
+        const key = eventDayRange(ev, zone).startKey;
+        if (key < monthStart || key > monthEnd) continue;   // keep every day in-month
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(ev);
+    }
+
+    if (!groups.size) {
+        wrap.appendChild(elem('p', 'cal-empty', 'No events this month.'));
         return;
     }
-    renderList(inRange, container, cal);
+
+    for (const key of Array.from(groups.keys()).sort()) {
+        const evs = groups.get(key).sort((a, b) => startSortKey(a, zone) - startSortKey(b, zone));
+        wrap.appendChild(buildDayGroup(key, evs, today, zone, cal));
+    }
 }
 
 
@@ -1988,12 +2008,36 @@ class Calendar {
         this._wireInput();
     }
 
-    // Wheel + keyboard, bound on the (focusable) calendar. Works with or without
-    // the toolbar.
+    // Wheel + keyboard + touch, bound on the (focusable) calendar. Works with or
+    // without the toolbar.
     _wireInput() {
         this.container.tabIndex = 0;
         this.container.addEventListener('wheel', (e) => this._onWheel(e), { passive: false });
         this.container.addEventListener('keydown', (e) => this._onKey(e));
+        // A horizontal swipe pages views that opt in (Day → adjacent day). Week
+        // doesn't opt in: there a horizontal swipe scrolls its day columns.
+        this.container.addEventListener('touchstart', (e) => this._onTouchStart(e), { passive: true });
+        this.container.addEventListener('touchend', (e) => this._onTouchEnd(e), { passive: true });
+    }
+
+    _onTouchStart(e) {
+        // Single-finger swipes only (ignore pinch), and only over the view body.
+        this._swipe = (e.touches.length === 1 && this._body && this._body.contains(e.target))
+            ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null;
+    }
+
+    _onTouchEnd(e) {
+        const start = this._swipe;
+        this._swipe = null;
+        if (!start) return;
+        const v = this._activeView();
+        if (!v || !v.swipeNav) return;
+        const t = e.changedTouches[0];
+        const dx = t.clientX - start.x, dy = t.clientY - start.y;
+        // Commit only to a clear, dominantly-horizontal swipe so a vertical
+        // hour-scroll never pages. Swipe left → next, swipe right → prev.
+        if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+        if (dx < 0) this._navNext(); else this._navPrev();
     }
 
     // Flip light/dark (the component owns the sun/moon). theme.js still sets the
@@ -2268,7 +2312,7 @@ class Calendar {
 Calendar.views = {
     day: {
         label: 'Day', render(events, c, cal) { renderTimeGrid(events, c, cal, [dayCursor(cal)]); },
-        navModel: 'scroll', navAxis: 'horizontal', pickerKind: 'day',
+        navModel: 'scroll', navAxis: 'horizontal', pickerKind: 'day', swipeNav: true,
         title(cal) {
             return tz.dayLabel(dayCursor(cal), { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
         },
