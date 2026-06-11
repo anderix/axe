@@ -181,6 +181,10 @@ Adds the Day and Week time-grid views, so the set is now Day, Week, Month, and L
 
 Fixes a list-view bug where a single unbreakable token (a long URL in a description) could force an event card wider than the viewport, which — because a vertical scroll container also accepts horizontal scrolling — let the list pan sideways on a touch swipe. Event cards now shrink to the available width and break long tokens, and the scrolling views lock their horizontal axis.
 
+Reworks the Day and Week time grid into a single sticky scroller so a narrow Week stays usable. The whole grid — the day-name header, the all-day strip, the hour gutter, and the day columns — now lives in one CSS grid inside one scroll container, with the header rows and the gutter frozen by `position: sticky`. On a wide screen the seven columns share the width and only the hours scroll, exactly as before, with the bonus that the header now also pins when you scroll down. On a phone the columns take a fixed width and the day area scrolls horizontally past the frozen gutter and header, like a spreadsheet with a frozen first column and header row; the view opens centered on today. Day view keeps its single full-width column and never scrolls sideways.
+
+Fixes a related bug where switching from Day or Week back to Month or List left scrolling dead. The body element persists across view changes, and the time grid's `overflow: hidden` was lingering on it because each renderer only cleaned up after some of the others. Clearing every view's layout class in one place before each draw makes the next view's own scrolling reliable regardless of where you came from.
+
 ### 0.4.1-dev (2026-06-10)
 
 Promotes the calendar's categorical event colors to brand tokens (`--cal-cat-hue`, `--cal-cat-saturation`, `--cal-cat-lightness`), so the chip and bar palette is now fully brand-overridable — the last hard-coded color values in the component. Defaults match the previous look, so no rendered calendar changes.

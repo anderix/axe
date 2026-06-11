@@ -793,24 +793,89 @@
     overflow: hidden;
 }
 
-/* The gutter width is shared by the header, the all-day strip, and the grid so
-   the day columns line up across all three. */
-.cal-tg-fill { --tg-gutter: 3.5rem; }
-
-.cal-tg-head,
-.cal-tg-allday {
-    display: grid;
-    grid-template-columns: var(--tg-gutter) minmax(0, 1fr);
-    flex-shrink: 0;
+/* --tg-gutter is the fixed hour-label column shared by every band so the day
+   columns line up; --tg-daymin is each day column's width on a narrow Week,
+   where the columns scroll horizontally past the frozen gutter. */
+.cal-tg-fill {
+    --tg-gutter: 3.5rem;
+    --tg-daymin: 8rem;
 }
 
-.cal-tg-cols,
-.cal-tg-allday-cols {
+/* One scroller for the whole grid; sticky cells inside freeze the header rows
+   and the hour gutter. Vertical scroll is always available; horizontal appears
+   only when the columns are wider than the viewport (narrow Week). */
+.cal-tg-scroll {
+    flex: 1;
+    min-height: 18rem;
+    overflow: auto;
+    overflow-anchor: none;
+}
+
+/* The outer table: a fixed gutter column + a body column, in three row bands
+   (day-name header / all-day strip / hour grid). The body column shares its
+   width across the day columns on wide screens (1fr — no horizontal scroll). */
+.cal-tg-table {
+    display: grid;
+    grid-template-columns: var(--tg-gutter) minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+}
+
+/* The three nested day grids align because they share one column template. */
+.cal-tg-headcols,
+.cal-tg-allday-cols,
+.cal-tg-daycols {
     display: grid;
     grid-template-columns: repeat(var(--tg-ncols, 1), minmax(0, 1fr));
 }
 
-.cal-tg-corner { border-bottom: 1px solid var(--color-border); }
+/* Grid placement + sticky freezing. Every sticky cell needs an opaque
+   background so scrolled content can't bleed through; z-index tiers keep the
+   corner above the frozen edges, which sit above the scrolling body. The
+   all-day strip pins just below the header (--tg-headh, measured in JS). */
+.cal-tg-corner {
+    grid-area: 1 / 1;
+    position: sticky;
+    top: 0;
+    left: 0;
+    z-index: 40;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.cal-tg-headcols {
+    grid-area: 1 / 2;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--color-surface);
+}
+
+.cal-tg-allday-label {
+    grid-area: 2 / 1;
+    position: sticky;
+    top: var(--tg-headh, 2rem);
+    left: 0;
+    z-index: 30;
+    background: var(--color-surface);
+}
+
+.cal-tg-allday-cols {
+    grid-area: 2 / 2;
+    position: sticky;
+    top: var(--tg-headh, 2rem);
+    z-index: 20;
+    background: var(--color-surface);
+}
+
+.cal-tg-gutter {
+    grid-area: 3 / 1;
+    position: sticky;
+    left: 0;
+    z-index: 20;
+    background: var(--color-surface);
+}
+
+.cal-tg-daycols { grid-area: 3 / 2; }
 
 .cal-tg-dayhead {
     display: flex;
@@ -852,13 +917,9 @@
     color: var(--color-surface);
 }
 
-/* All-day strip: a label in the gutter, lane-packed bars in the columns. */
-.cal-tg-allday {
-    border-bottom: 1px solid var(--color-border);
-    max-height: 6rem;
-    overflow-y: auto;
-}
-
+/* All-day strip: a label in the gutter, lane-packed bars in the columns. The
+   bars cap their height and scroll internally so a busy day can't crowd out the
+   hour grid below. */
 .cal-tg-allday-label {
     font-family: var(--font-mono);
     font-size: 0.6rem;
@@ -867,11 +928,15 @@
     color: var(--color-text-muted);
     padding: 0.35rem 0.4rem 0;
     text-align: right;
+    border-bottom: 1px solid var(--color-border);
 }
 
 .cal-tg-allday-cols {
     gap: 1px 0;
     padding: 0.25rem 0;
+    max-height: 6rem;
+    overflow-y: auto;
+    border-bottom: 1px solid var(--color-border);
 }
 
 /* All-day bars reuse the month .cal-bar look but sit in their own rows. */
@@ -879,24 +944,8 @@
     margin: 0 1px;
 }
 
-/* The scroll viewport and the absolutely-positioned hour grid inside it. */
-.cal-tg-scroll {
-    flex: 1;
-    min-height: 18rem;
-    overflow-y: auto;
-    overflow-x: hidden;     /* lock the horizontal axis (see .cal-list-fill) */
-    overflow-anchor: none;
-}
-
-.cal-tg-grid {
-    position: relative;
-    display: grid;
-    grid-template-columns: var(--tg-gutter) minmax(0, 1fr);
-}
-
-/* Hour labels in the gutter, each pinned to its line. */
-.cal-tg-gutter { position: relative; }
-
+/* Hour labels in the gutter, each pinned to its line (the sticky gutter is the
+   containing block for their absolute positioning). */
 .cal-tg-hour {
     position: absolute;
     right: 0.4rem;
@@ -909,8 +958,6 @@
 
 /* Day columns: horizontal hour lines drawn as a background gradient so they
    stay crisp at any height; a left divider separates the columns. */
-.cal-tg-grid .cal-tg-cols { position: relative; }
-
 .cal-tg-col {
     position: relative;
     border-left: 1px solid var(--color-border);
@@ -1176,6 +1223,20 @@
     .cal-menu .cal-view-tab { flex: 1; }
     .cal-menu .cal-actions { flex-direction: column; align-items: stretch; }
     .cal-menu .theme-toggle { align-self: center; }
+
+    /* Narrow Week: seven columns won't fit, so give each a fixed width and let
+       the body scroll horizontally past the frozen gutter and header. Day
+       (single column, no .cal-tg-multi) keeps the 1fr fill and never scrolls
+       sideways. */
+    .cal-tg-multi .cal-tg-table {
+        grid-template-columns: var(--tg-gutter) max-content;
+    }
+
+    .cal-tg-multi .cal-tg-headcols,
+    .cal-tg-multi .cal-tg-allday-cols,
+    .cal-tg-multi .cal-tg-daycols {
+        grid-template-columns: repeat(var(--tg-ncols, 1), var(--tg-daymin, 8rem));
+    }
 }
 
 

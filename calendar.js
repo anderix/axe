@@ -639,7 +639,6 @@ function afterLayout(fn) {
 }
 
 function renderList(events, container, cal) {
-    container.classList.remove('cal-month-fill');
     container.classList.add('cal-list-fill');
 
     const zone = cal.timezone;
@@ -1024,7 +1023,6 @@ function makeBar(ev, seg, zone, cal, rowBase) {
 
 function renderMonth(events, container, cal) {
     closePopover(cal);
-    container.classList.remove('cal-list-fill');
     const zone = cal.timezone;
 
     const cur = monthCursor(cal);
@@ -1040,7 +1038,6 @@ function renderMonth(events, container, cal) {
     // the breakpoint we render the visible month as a day stack instead.
     const narrow = typeof window !== 'undefined' && window.innerWidth < MONTH_NARROW_PX;
     if (narrow) {
-        container.classList.remove('cal-month-fill');
         renderMonthStack(events, container, cal, gridStart, numWeeks);
         return;
     }
@@ -1284,7 +1281,6 @@ function placeNowLine(cal, line) {
 
 function renderTimeGrid(events, container, cal, dayKeys) {
     closePopover(cal);
-    container.classList.remove('cal-list-fill', 'cal-month-fill');
     container.classList.add('cal-tg-fill');
 
     const zone = cal.timezone;
@@ -1319,10 +1315,20 @@ function renderTimeGrid(events, container, cal, dayKeys) {
         timedByCol[idx].push({ ev, startMin, endMin });
     }
 
-    // --- day-name header row (gutter spacer + one head per column) ---
-    const head = elem('div', 'cal-tg-head');
-    head.appendChild(elem('div', 'cal-tg-corner'));
-    const headCols = elem('div', 'cal-tg-cols');
+    // Multi-column (Week) gets the narrow horizontal-scroll treatment; a single
+    // column (Day) always fills the width, so it never scrolls sideways.
+    container.classList.toggle('cal-tg-multi', ncols > 1);
+
+    // One sticky scroller holds the whole grid. The day-name header and all-day
+    // strip freeze on vertical scroll, the hour gutter freezes on horizontal
+    // scroll, and on a narrow Week the day columns scroll past the frozen
+    // gutter. A spreadsheet with a frozen header row and first column.
+    const scroll = elem('div', 'cal-tg-scroll');
+    const table = elem('div', 'cal-tg-table');
+
+    // Row 1: corner spacer + day-name header.
+    table.appendChild(elem('div', 'cal-tg-corner'));
+    const headCols = elem('div', 'cal-tg-headcols');
     for (let i = 0; i < ncols; i++) {
         const key = dayKeys[i];
         const h = elem('div', 'cal-tg-dayhead');
@@ -1334,37 +1340,31 @@ function renderTimeGrid(events, container, cal, dayKeys) {
         h.appendChild(num);
         headCols.appendChild(h);
     }
-    head.appendChild(headCols);
-    container.appendChild(head);
+    table.appendChild(headCols);
 
-    // --- all-day strip (only when something rides it) ---
+    // Row 2: all-day strip (only when something rides it).
     if (stripSegs.length) {
         packSegs(stripSegs, ncols);
         const lanes = Math.max(...stripSegs.map(s => s.lane)) + 1;
-        const strip = elem('div', 'cal-tg-allday');
-        strip.appendChild(elem('div', 'cal-tg-allday-label', 'all-day'));
-        const cols = elem('div', 'cal-tg-allday-cols');
-        cols.style.gridTemplateRows = 'repeat(' + lanes + ', 1.4rem)';
-        for (const seg of stripSegs) cols.appendChild(makeBar(seg.ev, seg, zone, cal, 1));
-        strip.appendChild(cols);
-        container.appendChild(strip);
+        table.appendChild(elem('div', 'cal-tg-allday-label', 'all-day'));
+        const adCols = elem('div', 'cal-tg-allday-cols');
+        adCols.style.gridTemplateRows = 'repeat(' + lanes + ', 1.4rem)';
+        for (const seg of stripSegs) adCols.appendChild(makeBar(seg.ev, seg, zone, cal, 1));
+        table.appendChild(adCols);
     }
 
-    // --- scrolling hour grid ---
-    const scroll = elem('div', 'cal-tg-scroll');
-    const grid = elem('div', 'cal-tg-grid');
-    grid.style.height = (24 * HOUR_PX) + 'px';
-
+    // Row 3: hour gutter + day columns, both 24 hours tall.
     const gutter = elem('div', 'cal-tg-gutter');
     for (let h = 1; h < 24; h++) {       // skip midnight (clipped at the top edge)
         const lab = elem('div', 'cal-tg-hour', tz.timeLabel(h, 0));
         lab.style.top = (h * HOUR_PX) + 'px';
         gutter.appendChild(lab);
     }
-    grid.appendChild(gutter);
+    table.appendChild(gutter);
 
-    const cols = elem('div', 'cal-tg-cols');
-    let nowLine = null;
+    const dayCols = elem('div', 'cal-tg-daycols');
+    dayCols.style.height = (24 * HOUR_PX) + 'px';
+    let nowLine = null, todayCol = null;
     for (let i = 0; i < ncols; i++) {
         const col = elem('div', 'cal-tg-col');
         if (dayKeys[i] === todayKey) col.classList.add('is-today');
@@ -1373,15 +1373,17 @@ function renderTimeGrid(events, container, cal, dayKeys) {
             col.appendChild(makeTimedEvent(it, zone, cal));
         }
         if (dayKeys[i] === todayKey) {
+            todayCol = col;
             nowLine = elem('div', 'cal-now-line');
             nowLine.appendChild(elem('span', 'cal-now-dot'));
             placeNowLine(cal, nowLine);
             col.appendChild(nowLine);
         }
-        cols.appendChild(col);
+        dayCols.appendChild(col);
     }
-    grid.appendChild(cols);
-    scroll.appendChild(grid);
+    table.appendChild(dayCols);
+
+    scroll.appendChild(table);
     container.appendChild(scroll);
 
     // Tick the now-line once a minute; cleared on the next _draw.
@@ -1390,11 +1392,19 @@ function renderTimeGrid(events, container, cal, dayKeys) {
     }
 
     // Land on the current hour (today) or the morning, a quarter down the fold.
+    // The all-day strip pins below the header, so publish the header's height
+    // for the strip's sticky offset. On a narrow Week, also bring today's
+    // column into view horizontally.
     afterLayout(() => {
+        container.style.setProperty('--tg-headh', (headCols.offsetHeight || 0) + 'px');
         const p = tz.partsInZone(new Date(), zone);
         const targetMin = (todayKey >= rangeStart && todayKey <= rangeEnd)
             ? p.hour * 60 + p.minute : TG_DEFAULT_HOUR * 60;
         scroll.scrollTop = Math.max(0, targetMin / 60 * HOUR_PX - scroll.clientHeight * 0.25);
+        if (todayCol && scroll.scrollWidth > scroll.clientWidth) {
+            const c = todayCol.getBoundingClientRect(), s = scroll.getBoundingClientRect();
+            scroll.scrollLeft += (c.left - s.left) - scroll.clientWidth * 0.3;
+        }
     });
 }
 
@@ -1860,6 +1870,10 @@ class Calendar {
         this._syncToolbar();
         const viewObj = Calendar.views[this.view] || Calendar.views.list;
         this._body.innerHTML = '';
+        // The body element persists across draws; clear every view's layout-mode
+        // class so one view's fill (e.g. the time-grid's overflow:hidden) can't
+        // linger and break the next view's scrolling. Renderers add their own.
+        this._body.classList.remove('cal-list-fill', 'cal-month-fill', 'cal-tg-fill', 'cal-tg-multi');
         viewObj.render(this.events, this._body, this);
     }
 
