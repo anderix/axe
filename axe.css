@@ -542,6 +542,7 @@ footer {
 }
 
 .theme-toggle:hover {
+    background: none;    /* re-assert: the generic button:hover would otherwise fill it accent */
     border-color: var(--color-accent);
     color: var(--color-accent);
 }

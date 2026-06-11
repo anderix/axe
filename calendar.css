@@ -66,6 +66,7 @@
 }
 
 .cal-menu-toggle:hover {
+    background: var(--color-surface);
     border-color: var(--color-accent);
     color: var(--color-accent);
 }
@@ -81,10 +82,24 @@
     cursor: pointer;
 }
 
+.cal-view-tab:hover {
+    background: var(--color-surface);
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+
 .cal-view-tab.is-active {
     background: var(--color-accent);
     color: var(--color-surface);
     border-color: var(--color-accent);
+}
+
+/* The active tab is already a solid accent fill; on hover deepen it to
+   accent-hover and keep the surface-colored label (not the ghost treatment). */
+.cal-view-tab.is-active:hover {
+    background: var(--color-accent-hover);
+    color: var(--color-surface);
+    border-color: var(--color-accent-hover);
 }
 
 .cal-today {
@@ -101,7 +116,13 @@
     cursor: pointer;
 }
 
+/* These are ghost buttons (surface background, accent text/border on hover).
+   axe.css paints every <button> with an accent background and an accent-hover
+   background on :hover; each hover here must re-assert its own background or
+   that framework default leaks through and the accent text sits on an accent
+   fill — blue on blue. */
 .cal-today:hover {
+    background: var(--color-surface);
     border-color: var(--color-accent);
     color: var(--color-accent);
 }
@@ -183,6 +204,7 @@
 }
 
 .cal-dp-yearnav:hover {
+    background: var(--color-surface);
     border-color: var(--color-accent);
     color: var(--color-accent);
 }
@@ -269,6 +291,7 @@
 }
 
 .cal-dp-today:hover {
+    background: var(--color-surface);
     border-color: var(--color-accent);
 }
 
@@ -292,7 +315,9 @@
 }
 
 .cal-action:hover {
+    background: var(--color-surface);
     border-color: var(--color-accent);
+    color: var(--color-accent);
 }
 
 /* Raw controls a host drops into the actions slot (getToolbarSlot) — e.g. the
@@ -548,6 +573,7 @@
 .cal-nav.is-horizontal .cal-nav-down::before { transform: translateX(-0.13rem) rotate(315deg); }
 
 .cal-nav-btn:hover {
+    background: var(--color-surface);
     border-color: var(--color-accent);
     color: var(--color-accent);
 }
