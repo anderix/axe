@@ -861,8 +861,6 @@
                 document.getElementById('title').textContent = cal.meta.calname;
                 document.title = cal.meta.calname + ' - View';
             }
-            const n = cal.getEvents().length;
-            document.getElementById('info').textContent = n + (n === 1 ? ' event' : ' events');
         });
     }
 
