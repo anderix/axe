@@ -626,6 +626,18 @@ function buildDayGroup(dayKey, dayEvents, todayKey, zone, cal) {
     return section;
 }
 
+// Run fn once after the browser has had a chance to lay out — normally the
+// next animation frame. requestAnimationFrame is paused in background tabs and
+// in headless browsers, so a short timeout backstops it; whichever fires first
+// wins. The list's settle (scroll-to-anchor) rides on this, so a date jump in a
+// background tab still lands where it should.
+function afterLayout(fn) {
+    let ran = false;
+    const run = () => { if (ran) return; ran = true; fn(); };
+    if (typeof requestAnimationFrame !== 'undefined') requestAnimationFrame(run);
+    setTimeout(run, 32);
+}
+
 function renderList(events, container, cal) {
     container.classList.remove('cal-month-fill');
     container.classList.add('cal-list-fill');
@@ -756,7 +768,7 @@ function renderList(events, container, cal) {
         // clientHeight 0, which would skip the 2-screen fill and clamp the
         // anchor scroll. Retry a few frames until it has a height.
         if (!container.clientHeight && tries < 10) {
-            requestAnimationFrame(() => settle(tries + 1));
+            afterLayout(() => settle(tries + 1));
             return;
         }
         const anchorTop = anchorSection ? anchorSection.offsetTop : 0;
@@ -782,8 +794,7 @@ function renderList(events, container, cal) {
     };
     container.addEventListener('scroll', cal._listScroll, { passive: true });
 
-    if (typeof requestAnimationFrame !== 'undefined') requestAnimationFrame(() => settle(0));
-    else settle(0);
+    afterLayout(() => settle(0));
 }
 
 function renderListEvent(ev, zone, cal) {

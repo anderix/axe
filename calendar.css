@@ -209,6 +209,26 @@
     border-color: var(--color-accent);
 }
 
+/* Raw controls a host drops into the actions slot (getToolbarSlot) — e.g. the
+   viewer's timezone <select> and its label — sit consistently beside the
+   .cal-action buttons without the host styling them. */
+.cal-actions select {
+    font: inherit;
+    font-size: 0.85rem;
+    padding: 0.3rem 0.4rem;
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    width: auto;
+}
+
+.cal-actions label {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+}
+
 /* The view body fills the area under the toolbar; the active view makes it
    scroll (list) or fill (month). position:relative so the list's scroll math
    measures against this box. Popovers still anchor to .axe-cal. */
