@@ -1,5 +1,5 @@
 /* ============================================================
-   AXE CALENDAR v0.5.0-dev
+   AXE CALENDAR v1.0.0
    An RFC 5545 (iCalendar) renderer for axe.
 
    The universal viewer renders .ics/.ical with this engine the
@@ -2439,7 +2439,7 @@ Calendar.exporters = { csv: exportCsv, ical: exportIcal };
 
 // Version. Keep in sync with the axe.css / calendar.css headers and
 // the --axe-version property; read at runtime via Calendar.version.
-Calendar.version = '0.5.0-dev';
+Calendar.version = '1.0.0';
 
 // Shared internals exposed for the month view (slice 2),
 // exporters (slice 3), and unit tests.

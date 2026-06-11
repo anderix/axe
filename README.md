@@ -173,7 +173,9 @@ This is a deploy-tracking stamp, not a strict semver contract; git remains the s
 
 While iterating, the working copy carries a `-dev` suffix (for example `0.4.1-dev`). This is deliberate: `anderix.com` runs the working copy via the symlink and gets deployed often, ahead of the last stable release that other sites vendor. The `-dev` suffix keeps the stamp honest — a site reporting `0.4.1-dev` is bleeding-edge, one reporting `0.4.0` is the last release. When a change is stable enough to push everywhere, drop the suffix (`0.4.1`) and re-vendor the files into each consuming project in the same pass.
 
-### 0.5.0-dev (2026-06-10)
+### 1.0.0 (2026-06-10)
+
+First stable release — the version stamp leaves the `-dev` track. The calendar component is feature-complete: Day, Week, Month, and List views under one component-owned toolbar, RFC 5545 parsing with recurrence, CSV and iCal export, timezone control, and full brand-variable theming. The work that landed on the way here:
 
 Completes the component-owned toolbar and the full view set. The calendar now renders one persistent toolbar above a scrolling view body — Today with a direction arrow, prev/next navigation, a clickable title that opens a date picker, the view tabs, declarative host actions, and the theme toggle — and the host supplies only the feed and any custom controls (via `getToolbarSlot()`). On a narrow screen the right cluster collapses into a hamburger and the list becomes the default. Navigation is wired to the wheel (paging the month, scrolling the list) and the keyboard (PageUp/PageDown page, Home jumps to today). The toolbar's ghost buttons re-assert their own background on hover, so the framework's default accent button-fill no longer leaks under them and washes out the accent-colored label.
 
@@ -190,6 +192,8 @@ Fixes the frozen hour gutter scrolling away on a narrow Week. `position: sticky`
 Adds a horizontal swipe to the Day view to page to the adjacent day — swipe left for the next day, right for the previous — since the prev/next chevrons hide on a narrow screen. A view opts in with a `swipeNav` flag, so Week (where a horizontal swipe scrolls its day columns) is deliberately left out. The swipe commits only to a clear, dominantly-horizontal gesture, so a vertical hour-scroll never pages.
 
 Makes the narrow month fallback a clean single month. The small-screen stand-in for the month grid is a day-grouped list; it now expands recurrence only within the displayed month and emits only that month's days, instead of borrowing the List view's infinite, today-anchored feed. That drops both the leading and trailing days that pad the wide six-week grid and any out-of-month occurrences of a recurring series, so the list reads as exactly the month its title names.
+
+A pre-release code review hardened three things. The description linkifier now escapes double and single quotes before building its anchors, closing an attribute-breakout hole where a quote inside a feed's URL or description could inject an event handler when the description was assigned via `innerHTML` — relevant because the universal viewer renders arbitrary user-supplied `.ics`. Recurrence expansion now keeps an occurrence whenever it overlaps the visible window rather than only when its start falls inside it, so a multi-day recurring event (a repeating campout) that begins just before the window still rides into view. And the component gained a `destroy()` method that stops the now-line ticker, disconnects the list observer, and removes its resize, scroll, and document-level outside-click listeners, for a host that mounts and unmounts the calendar.
 
 ### 0.4.1-dev (2026-06-10)
 
