@@ -1586,6 +1586,15 @@ class Calendar {
         this.container = container;
         this.opts = opts;
         this.view = opts.view || 'month';
+        // On a narrow screen the month grid renders as a day-stack — basically a
+        // list bounded to one month, without the list view's open-on-today and
+        // lazy scroll. Open on the list there instead; the user can still switch
+        // to Month. Initial default only (not re-applied on resize), so a manual
+        // choice sticks.
+        if (this.view === 'month' && typeof window !== 'undefined'
+            && window.innerWidth < MONTH_NARROW_PX) {
+            this.view = 'list';
+        }
         this.timezone = opts.timezone || null;        // null = browser local
         this.onEventClick = opts.onEventClick || null;
         this.events = [];
