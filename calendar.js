@@ -1545,28 +1545,25 @@ function listSyncOnScroll(cal) {
 }
 
 // Build one declarative toolbar action: { label, href|copy|onClick, title }.
-// href → link; copy → clipboard button with "Copied!" feedback; onClick → custom.
+// Every action is a <button> for a uniform look — href navigates on click,
+// copy writes to the clipboard with "Copied!" feedback, onClick runs custom.
 function buildAction(desc) {
-    let el;
+    const el = elem('button', 'cal-action', desc.label);
+    el.type = 'button';
     if (desc.href != null) {
-        el = elem('a', 'cal-action', desc.label);
-        el.href = desc.href;
-    } else {
-        el = elem('button', 'cal-action', desc.label);
-        el.type = 'button';
-        if (desc.copy != null) {
-            el.addEventListener('click', function () {
-                const restore = el.textContent;
-                const flash = function () {
-                    el.textContent = 'Copied!';
-                    setTimeout(function () { el.textContent = restore; }, 1500);
-                };
-                if (navigator.clipboard) navigator.clipboard.writeText(desc.copy).then(flash, function () {});
-                else flash();
-            });
-        } else if (typeof desc.onClick === 'function') {
-            el.addEventListener('click', function () { desc.onClick(el); });
-        }
+        el.addEventListener('click', function () { window.location.href = desc.href; });
+    } else if (desc.copy != null) {
+        el.addEventListener('click', function () {
+            const restore = el.textContent;
+            const flash = function () {
+                el.textContent = 'Copied!';
+                setTimeout(function () { el.textContent = restore; }, 1500);
+            };
+            if (navigator.clipboard) navigator.clipboard.writeText(desc.copy).then(flash, function () {});
+            else flash();
+        });
+    } else if (typeof desc.onClick === 'function') {
+        el.addEventListener('click', function () { desc.onClick(el); });
     }
     if (desc.title) el.title = desc.title;
     return el;
