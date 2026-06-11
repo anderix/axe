@@ -655,9 +655,12 @@ function renderList(events, container, cal) {
     }
     const days = Array.from(groupsMap.entries());   // [ [dayKey, [ev,...]], ... ]
 
-    // Anchor on today, else the first upcoming day; if all events are past,
-    // anchor on the most recent day.
-    let anchorIdx = days.findIndex(([k]) => k >= today);
+    // Anchor on the date-picker's month if set, else today / first upcoming
+    // day; if all events are past, anchor on the most recent day. The
+    // is-today / is-past marking always uses the real today.
+    cal._listToday = today;
+    const anchorKey = cal._listAnchor || today;
+    let anchorIdx = days.findIndex(([k]) => k >= anchorKey);
     const allPast = anchorIdx === -1;
     if (allPast) anchorIdx = days.length - 1;
 
@@ -743,7 +746,19 @@ function renderList(events, container, cal) {
     // clientHeight would read 0. Defer one frame, then fill the initial future,
     // pin the anchor, and only then watch the sentinels (so they don't all fire
     // against an unscrolled list and cascade-load everything).
-    function settle() {
+    function settle(tries) {
+        tries = tries || 0;
+        // Bail if a newer render has replaced this list (stale closure): a
+        // re-render (resize, view switch, date jump) detaches our wrap, and a
+        // late settle must not append to / scroll the orphaned tree.
+        if (!wrap.isConnected) return;
+        // Wait for layout: right after a re-render the flex body can report
+        // clientHeight 0, which would skip the 2-screen fill and clamp the
+        // anchor scroll. Retry a few frames until it has a height.
+        if (!container.clientHeight && tries < 10) {
+            requestAnimationFrame(() => settle(tries + 1));
+            return;
+        }
         const anchorTop = anchorSection ? anchorSection.offsetTop : 0;
         while (endIdx + 1 < days.length &&
                container.scrollHeight - anchorTop < 2 * container.clientHeight) {
@@ -756,13 +771,9 @@ function renderList(events, container, cal) {
         listSyncOnScroll(cal);              // initial title + Today-direction
     }
 
-    // Toolbar hooks for the list view: Today scrolls to the anchor; the title
-    // and Today arrow track scroll position (updated on scroll, rAF-throttled).
-    cal._listAnchorEl = anchorSection;
-    cal._listScrollToToday = function () {
-        container.scrollTop = allPast ? container.scrollHeight
-                                      : (anchorSection ? anchorSection.offsetTop : 0);
-    };
+    // The title and Today arrow track scroll position (rAF-throttled). The
+    // Today button re-renders anchored at today (list view object), so no
+    // scroll-to closure is needed here.
     let scrollScheduled = false;
     cal._listScroll = function () {
         if (scrollScheduled) return;
@@ -771,8 +782,8 @@ function renderList(events, container, cal) {
     };
     container.addEventListener('scroll', cal._listScroll, { passive: true });
 
-    if (typeof requestAnimationFrame !== 'undefined') requestAnimationFrame(settle);
-    else settle();
+    if (typeof requestAnimationFrame !== 'undefined') requestAnimationFrame(() => settle(0));
+    else settle(0);
 }
 
 function renderListEvent(ev, zone, cal) {
@@ -1487,18 +1498,23 @@ function pageBody(cal, dir) {
 function listSyncOnScroll(cal) {
     const b = cal._body;
     if (!b) return;
-    let topSec = null;
+    const top = b.scrollTop, bottom = top + b.clientHeight;
+    let topSec = null, botSec = null;
     const secs = b.querySelectorAll('.cal-day');
-    for (const s of secs) { if (s.offsetTop <= b.scrollTop + 4) topSec = s; else break; }
-    if (topSec) {
-        const t = topSec.querySelector('time');
-        if (t) cal._listTopMonth = tz.dayLabel(t.getAttribute('datetime'), { month: 'long', year: 'numeric' });
+    for (const s of secs) {
+        if (s.offsetTop <= top + 4) topSec = s;
+        if (s.offsetTop < bottom) botSec = s; else break;
     }
-    const a = cal._listAnchorEl;
-    if (a && a.isConnected) {
-        const aTop = a.offsetTop;
-        cal._listTodayDir = b.scrollTop > aTop + 4 ? 'up'
-            : (b.scrollTop + b.clientHeight < aTop ? 'down' : null);
+    const keyOf = (s) => (s && s.querySelector('time')) ? s.querySelector('time').getAttribute('datetime') : null;
+    const topKey = keyOf(topSec);
+    if (topKey) {
+        cal._listTopMonth = tz.dayLabel(topKey, { month: 'long', year: 'numeric' });
+        cal._listTopYM = { year: +topKey.slice(0, 4), month: +topKey.slice(5, 7) };
+    }
+    // Today arrow: where is today relative to the visible day range?
+    const t = cal._listToday, botKey = keyOf(botSec);
+    if (t && topKey) {
+        cal._listTodayDir = t < topKey ? 'up' : (botKey && t > botKey ? 'down' : null);
     } else {
         cal._listTodayDir = null;
     }
@@ -1580,6 +1596,7 @@ class Calendar {
 
     _draw() {
         closePopover(this);
+        if (this._datePicker) this._closeDatePicker();
         if (this._listObserver) { this._listObserver.disconnect(); this._listObserver = null; }
         if (this._listScroll && this._body) {
             this._body.removeEventListener('scroll', this._listScroll);
@@ -1627,7 +1644,12 @@ class Calendar {
         next.addEventListener('click', () => this._navNext());
         nav.appendChild(prev); nav.appendChild(next);
 
-        const title = elem('span', 'cal-title');
+        const title = elem('button', 'cal-title');     // click opens the date picker
+        title.type = 'button';
+        const titleText = elem('span', 'cal-title-text');
+        title.appendChild(titleText);
+        title.appendChild(elem('span', 'cal-title-caret', '▾'));
+        title.addEventListener('click', () => this._toggleDatePicker());
 
         const tabs = elem('div', 'cal-views');
         for (const name of Object.keys(Calendar.views)) {
@@ -1666,7 +1688,8 @@ class Calendar {
         this._bar = bar;
         this._tabs = tabs;
         this._body = body;
-        this._titleEl = title;
+        this._titleEl = titleText;
+        this._titleBtn = title;
         this._todayArrow = arrow;
         this._actionsSlot = actions;
 
@@ -1693,6 +1716,74 @@ class Calendar {
     // The toolbar's right-side actions container, for hosts that inject custom
     // controls (call after render()). Null when the toolbar is suppressed.
     getToolbarSlot() { return this._actionsSlot || null; }
+
+    // --- Date picker: click the title to jump to a month/year ----
+    _toggleDatePicker() {
+        if (this._datePicker) { this._closeDatePicker(); return; }
+        const v = this._activeView();
+        const ref = v.pickerRef ? v.pickerRef(this) : null;
+        if (!ref) return;
+
+        const pop = elem('div', 'cal-datepicker');
+        let year = ref.year;
+        const MN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const render = () => {
+            pop.innerHTML = '';
+            const head = elem('div', 'cal-dp-head');
+            const py = elem('button', 'cal-dp-yearnav', '‹');
+            const yl = elem('span', 'cal-dp-year', String(year));
+            const ny = elem('button', 'cal-dp-yearnav', '›');
+            py.type = ny.type = 'button';
+            py.setAttribute('aria-label', 'Previous year');
+            ny.setAttribute('aria-label', 'Next year');
+            py.addEventListener('click', () => { year--; render(); });
+            ny.addEventListener('click', () => { year++; render(); });
+            head.appendChild(py); head.appendChild(yl); head.appendChild(ny);
+            pop.appendChild(head);
+
+            const grid = elem('div', 'cal-dp-months');
+            for (let m = 1; m <= 12; m++) {
+                const mb = elem('button', 'cal-dp-month', MN[m - 1]);
+                mb.type = 'button';
+                if (year === ref.year && m === ref.month) mb.classList.add('is-current');
+                mb.addEventListener('click', () => this._pickDate(year, m));
+                grid.appendChild(mb);
+            }
+            pop.appendChild(grid);
+
+            const today = elem('button', 'cal-dp-today', 'Today');
+            today.type = 'button';
+            today.addEventListener('click', () => { this._closeDatePicker(); this._navToday(); });
+            pop.appendChild(today);
+        };
+        render();
+
+        this._datePicker = pop;
+        this.container.appendChild(pop);
+        const tr = this._titleBtn.getBoundingClientRect();
+        const cr = this.container.getBoundingClientRect();
+        pop.style.left = (tr.left - cr.left) + 'px';
+        pop.style.top = (tr.bottom - cr.top + 4) + 'px';
+
+        this._dpOutside = (e) => {
+            if (this._datePicker && !this._datePicker.contains(e.target) && !this._titleBtn.contains(e.target)) {
+                this._closeDatePicker();
+            }
+        };
+        setTimeout(() => document.addEventListener('mousedown', this._dpOutside), 0);
+    }
+
+    _pickDate(year, month) {
+        this._closeDatePicker();
+        const v = this._activeView();
+        if (v.goTo) v.goTo(this, year, month);
+        this._syncToolbar();
+    }
+
+    _closeDatePicker() {
+        if (this._datePicker) { this._datePicker.remove(); this._datePicker = null; }
+        if (this._dpOutside) { document.removeEventListener('mousedown', this._dpOutside); this._dpOutside = null; }
+    }
 
     _activeView() { return Calendar.views[this.view] || Calendar.views.list; }
     _navToday() { const v = this._activeView(); if (v.today) v.today(this); this._syncToolbar(); }
@@ -1836,14 +1927,22 @@ Calendar.views = {
             const cv = c.year * 12 + c.month, tv = t.year * 12 + t.month;
             return cv > tv ? 'up' : (cv < tv ? 'down' : null);
         },
+        goTo(cal, year, month) { cal._monthCursor = { year: year, month: month }; cal._draw(); },
+        pickerRef(cal) { return monthCursor(cal); },
     },
     list: {
         label: 'List', render: renderList, navModel: 'scroll',
         title(cal) { return cal._listTopMonth || ''; },
-        today(cal) { if (cal._listScrollToToday) cal._listScrollToToday(); },
+        today(cal) { cal._listAnchor = null; cal._draw(); },     // re-render anchored at today
         prev(cal) { pageBody(cal, -1); },
         next(cal) { pageBody(cal, 1); },
         todayDir(cal) { return cal._listTodayDir || null; },
+        goTo(cal, year, month) { cal._listAnchor = year + '-' + tz.pad(month) + '-01'; cal._draw(); },
+        pickerRef(cal) {
+            if (cal._listTopYM) return cal._listTopYM;
+            const t = tz.partsInZone(new Date(), cal.timezone);
+            return { year: t.year, month: t.month };
+        },
     },
 };
 Calendar.exporters = { csv: exportCsv, ical: exportIcal };
