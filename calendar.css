@@ -485,6 +485,19 @@
 }
 
 
+/* --- Category color ---------------------------------------
+   One recipe, shared by every categorical surface (chips, month
+   bars, time-grid blocks, popover dots). --cat-hue is the per-event
+   hue set in JS; the saturation, lightness, and fallback hue are
+   brand tokens. Each surface mixes this single value, so all four
+   views draw their category colors from one engine. */
+.cal-chip, .cal-bar, .cal-tg-event, .cal-pop-dot {
+    --cat-color: hsl(var(--cat-hue, var(--cal-cat-hue, 210))
+                     var(--cal-cat-saturation, 55%)
+                     var(--cal-cat-lightness, 50%));
+}
+
+
 /* --- Category chips --------------------------------------- */
 
 .cal-chips {
@@ -495,8 +508,8 @@
 }
 
 /* Color is a redundant cue: the category text is always shown, and
-   the hue only tints the chip and a leading dot. --chip-hue is set
-   per chip in JS. */
+   the hue only tints the chip and a leading dot. --cat-hue is set
+   per event in JS (see the shared --cat-color recipe above). */
 .cal-chip {
     display: inline-flex;
     align-items: center;
@@ -506,8 +519,8 @@
     padding: 0.1rem 0.5rem;
     border-radius: calc(var(--radius) * 2);
     color: var(--color-text);
-    background: color-mix(in srgb, hsl(var(--chip-hue, var(--cal-cat-hue, 210)) var(--cal-cat-saturation, 55%) var(--cal-cat-lightness, 50%)) 14%, var(--color-surface));
-    border: 1px solid color-mix(in srgb, hsl(var(--chip-hue, var(--cal-cat-hue, 210)) var(--cal-cat-saturation, 55%) var(--cal-cat-lightness, 50%)) 35%, var(--color-border));
+    background: color-mix(in srgb, var(--cat-color) 14%, var(--color-surface));
+    border: 1px solid color-mix(in srgb, var(--cat-color) 35%, var(--color-border));
 }
 
 .cal-chip::before {
@@ -515,7 +528,7 @@
     width: 0.5rem;
     height: 0.5rem;
     border-radius: 50%;
-    background: hsl(var(--chip-hue, var(--cal-cat-hue, 210)) var(--cal-cat-saturation, 55%) var(--cal-cat-lightness, 50%));
+    background: var(--cat-color);
     flex-shrink: 0;
 }
 
@@ -691,7 +704,7 @@
 
 /* Event bar / chip. Multi-day and all-day events fill; timed events
    show a leading dot. Color is a redundant cue — the label always rides
-   along (accessibility). --bar-hue is set per bar in JS. */
+   along (accessibility). --cat-hue is set per event in JS. */
 .cal-bar {
     align-self: center;
     z-index: 1;
@@ -706,9 +719,9 @@
     overflow: hidden;
     text-overflow: ellipsis;
     border: none;
-    border-left: 3px solid hsl(var(--bar-hue, var(--cal-cat-hue, 210)) var(--cal-cat-saturation, 55%) var(--cal-cat-lightness, 50%));
+    border-left: 3px solid var(--cat-color);
     border-radius: calc(var(--radius) * 0.5);
-    background: color-mix(in srgb, hsl(var(--bar-hue, var(--cal-cat-hue, 210)) var(--cal-cat-saturation, 55%) var(--cal-cat-lightness, 50%)) 18%, var(--color-surface));
+    background: color-mix(in srgb, var(--cat-color) 18%, var(--color-surface));
     color: var(--color-text);
     cursor: pointer;
 }
@@ -732,7 +745,7 @@
     border-radius: 50%;
     margin-right: 0.35rem;
     vertical-align: middle;
-    background: hsl(var(--bar-hue, var(--cal-cat-hue, 210)) var(--cal-cat-saturation, 55%) var(--cal-cat-lightness, 50%));
+    background: var(--cat-color);
 }
 
 .cal-bar.is-timed.is-plain::before {
@@ -984,8 +997,8 @@
     text-align: left;
     line-height: 1.2;
     color: var(--color-text);
-    background: color-mix(in srgb, hsl(var(--bar-hue, 200) 60% 50%) 18%, var(--color-surface));
-    border-left: 3px solid hsl(var(--bar-hue, 200) 60% 42%);
+    background: color-mix(in srgb, var(--cat-color) 18%, var(--color-surface));
+    border-left: 3px solid var(--cat-color);
     border-radius: var(--radius);
     cursor: pointer;
 }
@@ -1018,7 +1031,7 @@
     left: 0;
     right: 0;
     height: 0;
-    border-top: 2px solid var(--color-danger, #d23b3b);
+    border-top: 2px solid var(--color-danger);
     z-index: 3;
     pointer-events: none;
 }
@@ -1030,7 +1043,7 @@
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    background: var(--color-danger, #d23b3b);
+    background: var(--color-danger);
 }
 
 
@@ -1081,7 +1094,7 @@
     height: 0.55rem;
     flex-shrink: 0;
     border-radius: 50%;
-    background: hsl(var(--bar-hue, var(--cal-cat-hue, 210)) var(--cal-cat-saturation, 55%) var(--cal-cat-lightness, 50%));
+    background: var(--cat-color);
 }
 
 .cal-pop-dot.is-plain {

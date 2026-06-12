@@ -85,7 +85,7 @@ nav ul li a {
 }
 
 nav ul li a:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: color-mix(in srgb, var(--color-nav-text) 12%, transparent);
     color: var(--color-nav-text);
     text-decoration: none;
     opacity: 1;
@@ -554,7 +554,7 @@ nav .theme-toggle {
 }
 
 nav .theme-toggle:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: color-mix(in srgb, var(--color-nav-text) 12%, transparent);
     color: var(--color-nav-text);
     border-color: var(--color-nav-text);
 }

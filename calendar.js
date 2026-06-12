@@ -860,7 +860,7 @@ function renderListEvent(ev, zone, cal) {
         const chips = elem('div', 'cal-chips');
         for (const c of ev.categories) {
             const chip = elem('span', 'cal-chip', c);
-            chip.style.setProperty('--chip-hue', categoryHue(c));
+            chip.style.setProperty('--cat-hue', categoryHue(c));
             chips.appendChild(chip);
         }
         body.appendChild(chips);
@@ -1018,7 +1018,7 @@ function makeBar(ev, seg, zone, cal, rowBase) {
     const sc = statusClass(ev.status);
     if (sc) bar.classList.add(sc);
 
-    if (ev.categories.length) bar.style.setProperty('--bar-hue', categoryHue(ev.categories[0]));
+    if (ev.categories.length) bar.style.setProperty('--cat-hue', categoryHue(ev.categories[0]));
     else bar.classList.add('is-plain');
 
     bar.style.gridColumn = (seg.c0 + 1) + ' / ' + (seg.c1 + 2);
@@ -1282,7 +1282,7 @@ function makeTimedEvent(it, zone, cal) {
     const el = elem('button', 'cal-tg-event');
     const sc = statusClass(ev.status);
     if (sc) el.classList.add(sc);
-    if (ev.categories.length) el.style.setProperty('--bar-hue', categoryHue(ev.categories[0]));
+    if (ev.categories.length) el.style.setProperty('--cat-hue', categoryHue(ev.categories[0]));
     else el.classList.add('is-plain');
 
     el.style.top = (it.startMin / 60 * HOUR_PX) + 'px';
@@ -1482,7 +1482,7 @@ function popoverRow(ev, zone, cal) {
     const sc = statusClass(ev.status);
     const row = elem('button', 'cal-pop-event' + (sc ? ' ' + sc : ''));
     const dot = elem('span', 'cal-pop-dot');
-    if (ev.categories.length) dot.style.setProperty('--bar-hue', categoryHue(ev.categories[0]));
+    if (ev.categories.length) dot.style.setProperty('--cat-hue', categoryHue(ev.categories[0]));
     else dot.classList.add('is-plain');
     let when = 'All day';
     if (!ev.dtstart.allDay) {
@@ -1574,7 +1574,7 @@ function openEventPopover(cal, ev, anchorEl) {
         const chips = elem('div', 'cal-chips');
         for (const c of ev.categories) {
             const chip = elem('span', 'cal-chip', c);
-            chip.style.setProperty('--chip-hue', categoryHue(c));
+            chip.style.setProperty('--cat-hue', categoryHue(c));
             chips.appendChild(chip);
         }
         pop.appendChild(chips);

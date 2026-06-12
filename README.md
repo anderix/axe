@@ -138,6 +138,9 @@ Variables are split into two groups: a **required contract** that `axe.css` depe
 | --color-highlight-hover | Hover state for highlight            |
 | --color-nav-bg          | Navigation background                |
 | --color-nav-text        | Navigation link color                |
+| --color-danger          | Errors, destructive actions, now-line |
+| --color-success         | Confirmation, positive status        |
+| --color-warning         | Caution, pending status              |
 | --font-body             | Body typeface                        |
 | --font-heading          | Heading typeface                     |
 | --font-mono             | Code and monospace                   |
