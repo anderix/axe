@@ -1,8 +1,18 @@
 # Axe
 
-Axe is a lightweight, semantic CSS framework. Write plain HTML and it looks good on theme.
+Axe renders documents on-brand. A semantic CSS base styles plain HTML, and a matching set of components renders the standardized text formats the browser won't — CSV, Markdown, and iCalendar. One variable contract drives all of it, so point Axe at any of them and it comes out looking like your site.
 
-It is not a utility framework (Tailwind), a component library (Bootstrap), or a design system. It is a thin, opinionated base that makes semantic HTML look good and stay on-brand with zero configuration.
+It doesn't sit in a familiar category, and it isn't trying to. It isn't a utility framework (Tailwind), a component library (Bootstrap), or a design system. It's a small framework plus a curated set of components, held together by one idea: every piece takes a document and renders it on-brand through the same variable contract. The CSS base does that for semantic HTML; the components do it for the document formats HTML leaves on the floor.
+
+## What Axe Is
+
+The web runs on a document metaphor. A server sends a document and the requestor renders it; a browser, at its core, is a document viewer. But it's a selective one. It renders HTML, images, and PDF natively, and for nearly everything else it gives up and downloads the file. The axe viewer picks up a defined slice of what the browser abandons: standardized, text-based formats that carry visual structure worth rendering and have no native browser renderer. CSV, Markdown, iCalendar. It's the renderer the browser never shipped, wrapped around a view-only file manager for the directories that hold those files — point it at a path with `?url=`, and it renders whatever is there, on-brand.
+
+That boundary is a door policy, not an accident. A format earns a place in the viewer when it is text, standardized, structurally renderable, and unrendered by browsers. JSON is already handled by browsers, so it stays out. YAML and TOML are configuration rather than documents, so they stay out. The set is curated on purpose — which is why this is the axe viewer, not a universal one.
+
+The components carry no look of their own, and that is deliberate. A standalone widget ships its own complete styling and imposes it on every host; an axe component ships almost none and wears the host's identity through the variable contract instead. That dependence is the reason the components live inside Axe rather than as separate libraries. They are built on the CSS base as a substrate, not decorated by it as a convenience — pull the base out from under the calendar and its toolbar buttons drop to bare browser defaults. The coupling isn't a packaging detail to engineer away; it is what the components are for. They are the proof that the contract is worth depending on.
+
+The viewer reads, it never writes. It fetches a representation and renders it: no upload, no delete, no write surface. That is the document metaphor held to its word — a browser doesn't write to the server to render a page, and neither does the viewer.
 
 ## Quick Start
 
@@ -24,7 +34,7 @@ axe.css               Framework core. Projects import brand.css + axe.css.
 default.css           Default brand baseline (a complete set of contract vars).
                       Sites override it with their own brand.css.
 theme.js              Theme detection and toggle. Include in <head>.
-calendar.js           iCalendar (.ics) engine: parser, month + list views, CSV/iCal export.
+calendar.js           iCalendar (.ics) engine: parser, day/week/month/list views, CSV/iCal export.
 calendar.css          Calendar styles. Uses the variable contract only.
 sample.ics            Demo calendar feed (also the viewer demo and round-trip fixture).
 kitchen-sink.html     Reference page showing all styled HTML elements.
@@ -34,7 +44,7 @@ dependencies/
 tools/
   brand-builder.html  Generates brand.css from color, font, shape, and shadow inputs.
 view/
-  index.html          Universal viewer: directories, CSV, Markdown, iCalendar. ?url=path/to/resource
+  index.html          Axe viewer: directories, CSV, Markdown, iCalendar. ?url=path/to/resource
   list.php            Directory listing backend (returns JSON, requires PHP).
 ```
 
@@ -59,17 +69,17 @@ Axe provides two layout containers:
 
 `<section>` groups content with border separators.
 
-`.grid` is the only class in the framework. It creates a responsive card grid. Children can be `<article>` or `<a>` elements.
+`.grid` is the only class the CSS base adds. It creates a responsive card grid. Children can be `<article>` or `<a>` elements. (The document components carry their own classes, namespaced under `.axe-cal` and the viewer chrome.)
 
 ## Calendar (iCalendar)
 
-The universal viewer renders `.ics` / `.ical` feeds the same way it renders CSV and Markdown. Point it at a feed and it opens on a month grid, with a list toggle, a timezone selector, and CSV / iCal export in the toolbar:
+The axe viewer renders `.ics` / `.ical` feeds the same way it renders CSV and Markdown. Point it at a feed and it opens with a component-owned toolbar above a scrolling view body: Day, Week, Month, and List tabs, a Today button with a direction arrow, prev/next navigation, a clickable title that opens a date picker, a timezone selector, and CSV / iCal export. On a narrow screen the right cluster collapses into a hamburger and List becomes the default view.
 
 ```
 view/index.html?url=path/to/feed.ics
 ```
 
-`calendar.js` is the engine behind it: a single classic script with no dependencies and no build step, the same relationship `marked.min.js` has with Markdown. It parses RFC 5545 iCalendar, renders a month grid with true multi-day spanning bars, and exports back to CSV (RFC 4180) or iCalendar (round-trip stable). It also embeds in any page on its own.
+`calendar.js` is the engine behind it: a single classic script with no dependencies and no build step, the same relationship `marked.min.js` has with Markdown. It parses RFC 5545 iCalendar, recurrence included, and renders four views — a Day and Week time grid with overlap-aware event columns and a live current-time line, a Month grid with true multi-day spanning bars, and a lazy-loading List — then exports back to CSV (RFC 4180) or iCalendar (round-trip stable). It also embeds in any page on its own.
 
 ```html
 <link rel="stylesheet" href="calendar.css">
@@ -78,7 +88,7 @@ view/index.html?url=path/to/feed.ics
 <script>
   const cal = new Calendar(document.getElementById('cal'), {
     url: 'feed.ics',             // or source: '<raw iCal text>'
-    view: 'month',               // 'month' (default) or 'list'
+    view: 'month',               // 'day' | 'week' | 'month' (default) | 'list'
     timezone: 'America/Chicago'  // optional; defaults to the browser zone
   });
   cal.render();
@@ -161,7 +171,7 @@ Tints and shades are generated by RGB mixing toward white or black at stops of 3
 
 **Mobile first.** Base styles target small screens. Use `min-width` media queries to expand.
 
-**Minimal JavaScript.** `theme.js` is the only script in the framework. The brand builder and viewer are tools, not part of the core.
+**JavaScript only where rendering needs it.** The CSS base is styling alone; `theme.js` adds theme detection and the toggle. The components that render documents — the calendar engine behind the viewer — carry their own JavaScript, with no build step and no dependency beyond one vendored Markdown parser. A component earns its script by rendering a format CSS can't.
 
 **When in doubt, put it in the project first.** Promote to the framework when a second project needs it.
 
@@ -193,7 +203,7 @@ Adds a horizontal swipe to the Day view to page to the adjacent day — swipe le
 
 Makes the narrow month fallback a clean single month. The small-screen stand-in for the month grid is a day-grouped list; it now expands recurrence only within the displayed month and emits only that month's days, instead of borrowing the List view's infinite, today-anchored feed. That drops both the leading and trailing days that pad the wide six-week grid and any out-of-month occurrences of a recurring series, so the list reads as exactly the month its title names.
 
-A pre-release code review hardened three things. The description linkifier now escapes double and single quotes before building its anchors, closing an attribute-breakout hole where a quote inside a feed's URL or description could inject an event handler when the description was assigned via `innerHTML` — relevant because the universal viewer renders arbitrary user-supplied `.ics`. Recurrence expansion now keeps an occurrence whenever it overlaps the visible window rather than only when its start falls inside it, so a multi-day recurring event (a repeating campout) that begins just before the window still rides into view. And the component gained a `destroy()` method that stops the now-line ticker, disconnects the list observer, and removes its resize, scroll, and document-level outside-click listeners, for a host that mounts and unmounts the calendar.
+A pre-release code review hardened three things. The description linkifier now escapes double and single quotes before building its anchors, closing an attribute-breakout hole where a quote inside a feed's URL or description could inject an event handler when the description was assigned via `innerHTML` — relevant because the axe viewer renders arbitrary user-supplied `.ics`. Recurrence expansion now keeps an occurrence whenever it overlaps the visible window rather than only when its start falls inside it, so a multi-day recurring event (a repeating campout) that begins just before the window still rides into view. And the component gained a `destroy()` method that stops the now-line ticker, disconnects the list observer, and removes its resize, scroll, and document-level outside-click listeners, for a host that mounts and unmounts the calendar.
 
 ### 0.4.1-dev (2026-06-10)
 
@@ -203,7 +213,7 @@ Reworks the list view to open on today and lazy-load by event count. It scrolls 
 
 ### 0.4.0 (2026-06-10)
 
-Renames the in-axe default brand `brand.css` → `default.css` and establishes the brand cascade: a page links `default.css` (a complete baseline) and then its own sibling `brand.css`, which overrides only what differs and 404s harmlessly when absent. The universal viewer links the site brand this way, so it inherits each deployment's identity. This decouples the framework from any single brand: `axe/` becomes uniformly symlinkable across a site collection (or shared from one public copy), with `brand.css` the only per-site file.
+Renames the in-axe default brand `brand.css` → `default.css` and establishes the brand cascade: a page links `default.css` (a complete baseline) and then its own sibling `brand.css`, which overrides only what differs and 404s harmlessly when absent. The axe viewer links the site brand this way, so it inherits each deployment's identity. This decouples the framework from any single brand: `axe/` becomes uniformly symlinkable across a site collection (or shared from one public copy), with `brand.css` the only per-site file.
 
 ### 0.3.0 (2026-06-09)
 

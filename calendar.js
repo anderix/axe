@@ -2,7 +2,7 @@
    AXE CALENDAR v1.0.0
    An RFC 5545 (iCalendar) renderer for axe.
 
-   The universal viewer renders .ics/.ical with this engine the
+   The axe viewer renders .ics/.ical with this engine the
    same way it renders Markdown with marked.js. It also exposes a
    Calendar class for embedding in any page.
 
