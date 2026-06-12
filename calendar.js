@@ -627,7 +627,7 @@ function buildDayGroup(dayKey, dayEvents, todayKey, zone, cal) {
     const time = elem('time', null, tz.dayLabel(dayKey, { weekday: 'long', month: 'long', day: 'numeric' }));
     time.setAttribute('datetime', dayKey);
     heading.appendChild(time);
-    if (dayKey === todayKey) heading.appendChild(elem('span', 'cal-today-tag', 'Today'));
+    if (dayKey === todayKey) heading.appendChild(elem('span', 'cal-today-tag tag', 'Today'));
     section.appendChild(heading);
 
     for (const ev of dayEvents) section.appendChild(renderListEvent(ev, zone, cal));
@@ -1065,7 +1065,7 @@ function renderMonth(events, container, cal) {
     // --- weekday strip -----------------------------------------
     const strip = elem('div', 'cal-weekdays');
     for (let i = 0; i < 7; i++) {
-        const wd = elem('span', 'cal-weekday',
+        const wd = elem('span', 'cal-weekday eyebrow',
             tz.dayLabel(tz.addDays(gridStart, i), { weekday: 'short' }));
         if (i === todayCol) wd.classList.add('is-today');
         strip.appendChild(wd);
@@ -1361,7 +1361,7 @@ function renderTimeGrid(events, container, cal, dayKeys) {
         const h = elem('div', 'cal-tg-dayhead');
         if (key === todayKey) h.classList.add('is-today');
         else if (key < todayKey) h.classList.add('is-past');
-        h.appendChild(elem('span', 'cal-tg-dayhead-wd', tz.dayLabel(key, { weekday: 'short' })));
+        h.appendChild(elem('span', 'cal-tg-dayhead-wd eyebrow', tz.dayLabel(key, { weekday: 'short' })));
         const num = elem('span', 'cal-tg-dayhead-num', String(+key.slice(8, 10)));
         if (key === todayKey) num.classList.add('is-today');
         h.appendChild(num);
@@ -1373,7 +1373,7 @@ function renderTimeGrid(events, container, cal, dayKeys) {
     if (stripSegs.length) {
         packSegs(stripSegs, ncols);
         const lanes = Math.max(...stripSegs.map(s => s.lane)) + 1;
-        table.appendChild(elem('div', 'cal-tg-allday-label', 'all-day'));
+        table.appendChild(elem('div', 'cal-tg-allday-label eyebrow', 'all-day'));
         const adCols = elem('div', 'cal-tg-allday-cols');
         adCols.style.gridTemplateRows = 'repeat(' + lanes + ', 1.4rem)';
         for (const seg of stripSegs) adCols.appendChild(makeBar(seg.ev, seg, zone, cal, 1));
@@ -1506,7 +1506,7 @@ function openDayPopover(cal, dayKey, ranges, anchorEl) {
         .sort((a, b) => a.sortKey - b.sortKey)
         .map(r => r.ev);
 
-    const pop = elem('div', 'cal-popover');
+    const pop = elem('div', 'cal-popover panel');
     pop.appendChild(elem('div', 'cal-popover-date',
         tz.dayLabel(dayKey, { weekday: 'long', month: 'long', day: 'numeric' })));
     for (const ev of dayEvents) pop.appendChild(popoverRow(ev, zone, cal));
@@ -1561,11 +1561,11 @@ function openEventPopover(cal, ev, anchorEl) {
     const zone = cal.timezone;
     const sc = statusClass(ev.status);
 
-    const pop = elem('div', 'cal-event-pop' + (sc ? ' ' + sc : ''));
+    const pop = elem('div', 'cal-event-pop panel' + (sc ? ' ' + sc : ''));
     pop.appendChild(elem('h4', 'cal-pop-heading', ev.summary || '(untitled)'));
 
-    if (ev.status === 'TENTATIVE') pop.appendChild(elem('div', 'cal-pop-status', 'Tentative'));
-    else if (ev.status === 'CANCELLED') pop.appendChild(elem('div', 'cal-pop-status', 'Cancelled'));
+    if (ev.status === 'TENTATIVE') pop.appendChild(elem('div', 'cal-pop-status tag', 'Tentative'));
+    else if (ev.status === 'CANCELLED') pop.appendChild(elem('div', 'cal-pop-status tag', 'Cancelled'));
 
     pop.appendChild(elem('div', 'cal-pop-when', eventWhenText(ev, zone)));
     if (ev.location) pop.appendChild(elem('div', 'cal-pop-loc', ev.location));
@@ -2088,7 +2088,7 @@ class Calendar {
         const ref = v.pickerRef ? v.pickerRef(this) : null;
         if (!ref) return;
 
-        const pop = elem('div', 'cal-datepicker');
+        const pop = elem('div', 'cal-datepicker panel');
         const MN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const todayBtn = () => {
             const t = elem('button', 'cal-dp-today', 'Today');

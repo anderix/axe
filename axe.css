@@ -12,6 +12,13 @@
    `curl <site>/axe/axe.css | head`, or read --axe-version in devtools. */
 :root {
     --axe-version: "1.0.0";
+
+    /* Stacking scale. Structural, not brand: a shared ladder so a sticky
+       bar, a popover, and a modal layer predictably across components (e.g.
+       an embedded calendar's popover clears the viewer's sticky toolbar). */
+    --z-sticky:  100;
+    --z-popover: 200;
+    --z-modal:   300;
 }
 
 
@@ -530,6 +537,42 @@ button:hover, input[type="submit"]:hover, input[type="reset"]:hover {
     background: var(--color-surface);
     border-color: var(--color-accent);
     color: var(--color-accent);
+}
+
+
+/* --- Surfaces, labels, tags ------------------------------- */
+
+/* Elevated surface for popovers, dropdowns, and detail cards. Add positioning
+   and size at the call site. */
+.panel {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+}
+
+/* Overline / eyebrow: a small monospace, uppercase, muted label. */
+.eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-muted);
+}
+
+/* Tag / status pill. Outlined and muted by default; override background and
+   color for a filled variant. */
+.tag {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.1rem 0.45rem;
+    color: var(--color-text-muted);
+    background: none;
+    border: 1px solid var(--color-border);
+    border-radius: calc(var(--radius) * 0.6);
 }
 
 
