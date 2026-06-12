@@ -6,10 +6,10 @@
 #   ./set-version.sh 0.4.1        # a release
 #   ./set-version.sh 0.4.1-dev    # back to the working-copy suffix
 #
-# Touches the 5 code stamps only: axe.css (header + --axe-version),
-# calendar.css (header), calendar.js (header + Calendar.version). It does NOT
-# edit the README changelog — those notes are prose, so add a "### <version>
-# (date)" entry by hand, then commit and tag.
+# Touches the 6 stamps: axe.css (header + --axe-version), calendar.css (header),
+# calendar.js (header + Calendar.version), and kitchen-sink.html (footer). It
+# does NOT edit the README changelog — those notes are prose, so add a
+# "### <version> (date)" entry by hand, then commit and tag.
 #
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -38,8 +38,10 @@ sed -i -E "s/AXE CALENDAR v$V/AXE CALENDAR v$NEW/"                 calendar.css
 # calendar.js — banner comment and the runtime Calendar.version.
 sed -i -E "s/AXE CALENDAR v$V/AXE CALENDAR v$NEW/"                 calendar.js
 sed -i -E "s/(Calendar\.version = ')$V(')/\1$NEW\2/"              calendar.js
+# kitchen-sink.html — footer version line.
+sed -i -E "s/Axe v$V/Axe v$NEW/"                                  kitchen-sink.html
 
 echo "axe version set to $NEW:"
-grep -nE "AXE( CALENDAR)? v[0-9]|--axe-version:|Calendar\.version = '" axe.css calendar.css calendar.js
+grep -nE "AXE( CALENDAR)? v[0-9]|Axe v[0-9]|--axe-version:|Calendar\.version = '" axe.css calendar.css calendar.js kitchen-sink.html
 echo
 echo "Next: add a '### $NEW ($(date +%Y-%m-%d))' note to README.md, then commit + tag."

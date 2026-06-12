@@ -186,6 +186,18 @@ This is a deploy-tracking stamp, not a strict semver contract; git remains the s
 
 While iterating, the working copy carries a `-dev` suffix (for example `0.4.1-dev`). This is deliberate: `anderix.com` runs the working copy via the symlink and gets deployed often, ahead of the last stable release that other sites vendor. The `-dev` suffix keeps the stamp honest — a site reporting `0.4.1-dev` is bleeding-edge, one reporting `0.4.0` is the last release. When a change is stable enough to push everywhere, drop the suffix (`0.4.1`) and re-vendor the files into each consuming project in the same pass.
 
+### 1.1.0 (2026-06-12)
+
+Makes the viewer and calendar fully brandable — no hardcoded color survives outside the brand source — and promotes the patterns the calendar proved into the framework.
+
+Adds three semantic state tokens to the required contract: `--color-danger`, `--color-success`, and `--color-warning`, with light and dark values in `default.css` and the brand builder. The calendar's current-time line now draws from `--color-danger` instead of a literal red, and the two nav-hover overlays that hardcoded a translucent white — which assumed a dark nav and vanished on a light one — now derive from `--color-nav-text`, so they read on either.
+
+Consolidates the calendar's category color into one shared `--cat-color` recipe. Every categorical surface — month bars, list rows, Day and Week blocks, popover dots, and chips — had re-inlined the same `hsl()` computation; they now mix a single value computed once from the per-event hue and the brand category tokens. This retires the Day and Week color divergence, where those blocks ran a parallel recipe that ignored the brand tokens, and it tints the list row's left spine by category to match the other views, so the color scan cue is consistent across all four.
+
+Adds a `.ghost` button variant. A bare `<button>` is the solid accent primary; `.ghost` is the neutral secondary that takes the accent only on hover. The framework styled every button as a primary and offered no secondary, so each component that wanted a quiet button redeclared the surface treatment and re-asserted its background on hover to defeat the primary fill — nine times over. That hack now lives once in the framework, and the calendar's toolbar buttons carry only their own deltas.
+
+Promotes three more patterns to framework classes, each demoed in the kitchen sink: `.panel` (an elevated surface for popovers and cards), `.eyebrow` (a monospace overline label), and `.tag` (a status pill). Adds a `--z-*` stacking scale so a sticky bar, a popover, and a modal layer predictably — an embedded calendar's popover now clears the viewer's sticky toolbar rather than ducking under it.
+
 ### 1.0.0 (2026-06-10)
 
 First stable release — the version stamp leaves the `-dev` track. The calendar component is feature-complete: Day, Week, Month, and List views under one component-owned toolbar, RFC 5545 parsing with recurrence, CSV and iCal export, timezone control, and full brand-variable theming. The work that landed on the way here:

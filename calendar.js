@@ -1,5 +1,5 @@
 /* ============================================================
-   AXE CALENDAR v1.0.0
+   AXE CALENDAR v1.1.0
    An RFC 5545 (iCalendar) renderer for axe.
 
    The axe viewer renders .ics/.ical with this engine the
@@ -815,6 +815,8 @@ function renderList(events, container, cal) {
 function renderListEvent(ev, zone, cal) {
     const range = eventDayRange(ev, zone);
     const art = elem('article', 'cal-event' + (statusClass(ev.status) ? ' ' + statusClass(ev.status) : ''));
+    if (ev.categories.length) art.style.setProperty('--cat-hue', categoryHue(ev.categories[0]));
+    else art.classList.add('is-plain');
 
     // Time / all-day label (gutter), plus an optional multi-day span line.
     let when, spanLabel = null;
@@ -2439,7 +2441,7 @@ Calendar.exporters = { csv: exportCsv, ical: exportIcal };
 
 // Version. Keep in sync with the axe.css / calendar.css headers and
 // the --axe-version property; read at runtime via Calendar.version.
-Calendar.version = '1.0.0';
+Calendar.version = '1.1.0';
 
 // Shared internals exposed for the month view (slice 2),
 // exporters (slice 3), and unit tests.
