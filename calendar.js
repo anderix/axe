@@ -1813,7 +1813,7 @@ function listSyncOnScroll(cal) {
 // Every action is a <button> for a uniform look — href navigates on click,
 // copy writes to the clipboard with "Copied!" feedback, onClick runs custom.
 function buildAction(desc) {
-    const el = elem('button', 'cal-action', desc.label);
+    const el = elem('button', 'cal-action ghost', desc.label);
     el.type = 'button';
     if (desc.href != null) {
         el.addEventListener('click', function () { window.location.href = desc.href; });
@@ -1925,7 +1925,7 @@ class Calendar {
         const bar = elem('div', 'cal-topbar');    // not 'cal-bar' — that's the month event-bar
 
         // Today (with a direction arrow toward today) + prev/next chevrons.
-        const todayBtn = elem('button', 'cal-today');
+        const todayBtn = elem('button', 'cal-today ghost');
         todayBtn.type = 'button';
         const arrow = elem('span', 'cal-today-arrow');
         todayBtn.appendChild(arrow);
@@ -1937,8 +1937,8 @@ class Calendar {
         // those render off-center (one high, one low). The CSS shape sits
         // dead-center and both buttons read at the same level. aria-label
         // carries the meaning.
-        const prev = elem('button', 'cal-nav-btn cal-nav-up');     // prev
-        const next = elem('button', 'cal-nav-btn cal-nav-down');   // next
+        const prev = elem('button', 'cal-nav-btn cal-nav-up ghost');     // prev
+        const next = elem('button', 'cal-nav-btn cal-nav-down ghost');   // next
         prev.type = 'button'; next.type = 'button';
         prev.setAttribute('aria-label', 'Previous');
         next.setAttribute('aria-label', 'Next');
@@ -1956,7 +1956,7 @@ class Calendar {
 
         const tabs = elem('div', 'cal-views');
         for (const name of Object.keys(Calendar.views)) {
-            const tab = elem('button', 'cal-view-tab', Calendar.views[name].label);
+            const tab = elem('button', 'cal-view-tab ghost', Calendar.views[name].label);
             tab.type = 'button';
             tab.dataset.view = name;
             tab.addEventListener('click', () => { this.switchView(name); this._closeMenu(); });
@@ -1980,7 +1980,7 @@ class Calendar {
         // (CSS), opened by the ☰ button. The chevrons hide on narrow too (a
         // swipe is the touch gesture for prev/next).
         const menuWrap = elem('div', 'cal-menu-wrap');
-        const menuToggle = elem('button', 'cal-menu-toggle', '☰');
+        const menuToggle = elem('button', 'cal-menu-toggle ghost', '☰');
         menuToggle.type = 'button';
         menuToggle.setAttribute('aria-label', 'Menu');
         menuToggle.setAttribute('aria-expanded', 'false');
@@ -2101,9 +2101,9 @@ class Calendar {
         const renderMonths = () => {
             pop.innerHTML = '';
             const head = elem('div', 'cal-dp-head');
-            const py = elem('button', 'cal-dp-yearnav', '‹');
+            const py = elem('button', 'cal-dp-yearnav ghost', '‹');
             const yl = elem('span', 'cal-dp-label', String(year));
-            const ny = elem('button', 'cal-dp-yearnav', '›');
+            const ny = elem('button', 'cal-dp-yearnav ghost', '›');
             py.type = ny.type = 'button';
             py.setAttribute('aria-label', 'Previous year');
             ny.setAttribute('aria-label', 'Next year');
@@ -2131,9 +2131,9 @@ class Calendar {
         const renderDays = () => {
             pop.innerHTML = '';
             const head = elem('div', 'cal-dp-head');
-            const py = elem('button', 'cal-dp-yearnav', '‹');
+            const py = elem('button', 'cal-dp-yearnav ghost', '‹');
             const yl = elem('span', 'cal-dp-label', MN[vm - 1] + ' ' + vy);
-            const ny = elem('button', 'cal-dp-yearnav', '›');
+            const ny = elem('button', 'cal-dp-yearnav ghost', '›');
             py.type = ny.type = 'button';
             py.setAttribute('aria-label', 'Previous month');
             ny.setAttribute('aria-label', 'Next month');

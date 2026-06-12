@@ -513,6 +513,25 @@ button:hover, input[type="submit"]:hover, input[type="reset"]:hover {
     background: var(--color-accent-hover);
 }
 
+/* Ghost / secondary button. The bare <button> is a solid accent primary; add
+   .ghost for a neutral, surface-colored button that takes the accent only on
+   hover. Self-contained (it doesn't lean on the button base), so it reads
+   correctly on a <button> or an <a>, and its hover holds the surface fill —
+   the one place that re-asserts against the primary button:hover accent. */
+.ghost {
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    cursor: pointer;
+}
+
+.ghost:hover {
+    background: var(--color-surface);
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+
 
 /* --- Footer ----------------------------------------------- */
 

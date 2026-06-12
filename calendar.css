@@ -48,6 +48,8 @@
     gap: 0.5rem;
 }
 
+/* Ghost button (.ghost) supplies the surface/border/hover treatment; these
+   classes carry only their layout, sizing, and any color delta. */
 .cal-menu-toggle {
     display: none;           /* wide: cluster is inline, no hamburger */
     font: inherit;
@@ -58,34 +60,13 @@
     width: 2rem;
     height: 2rem;
     padding: 0;
-    background: var(--color-surface);
-    color: var(--color-text);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    cursor: pointer;
-}
-
-.cal-menu-toggle:hover {
-    background: var(--color-surface);
-    border-color: var(--color-accent);
-    color: var(--color-accent);
 }
 
 .cal-view-tab {
     font: inherit;
     font-size: 0.85rem;
     padding: 0.3rem 0.75rem;
-    background: var(--color-surface);
     color: var(--color-text-muted);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    cursor: pointer;
-}
-
-.cal-view-tab:hover {
-    background: var(--color-surface);
-    border-color: var(--color-accent);
-    color: var(--color-accent);
 }
 
 .cal-view-tab.is-active {
@@ -109,22 +90,6 @@
     align-items: center;
     gap: 0.3rem;
     padding: 0.35rem 0.7rem;
-    background: var(--color-surface);
-    color: var(--color-text);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    cursor: pointer;
-}
-
-/* These are ghost buttons (surface background, accent text/border on hover).
-   axe.css paints every <button> with an accent background and an accent-hover
-   background on :hover; each hover here must re-assert its own background or
-   that framework default leaks through and the accent text sits on an accent
-   fill — blue on blue. */
-.cal-today:hover {
-    background: var(--color-surface);
-    border-color: var(--color-accent);
-    color: var(--color-accent);
 }
 
 .cal-today-arrow {
@@ -196,17 +161,6 @@
     font: inherit;
     line-height: 1;
     padding: 0.15rem 0.5rem;
-    background: var(--color-surface);
-    color: var(--color-text);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    cursor: pointer;
-}
-
-.cal-dp-yearnav:hover {
-    background: var(--color-surface);
-    border-color: var(--color-accent);
-    color: var(--color-accent);
 }
 
 .cal-dp-months {
@@ -301,23 +255,14 @@
     gap: 0.5rem;
 }
 
+/* Ghost with an accent label (it's also used on <a> export links). */
 .cal-action {
     font: inherit;
     font-size: 0.85rem;
     font-weight: 600;
     padding: 0.35rem 0.6rem;
-    background: var(--color-surface);
     color: var(--color-accent);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
     text-decoration: none;
-    cursor: pointer;
-}
-
-.cal-action:hover {
-    background: var(--color-surface);
-    border-color: var(--color-accent);
-    color: var(--color-accent);
 }
 
 /* Raw controls a host drops into the actions slot (getToolbarSlot) — e.g. the
@@ -557,11 +502,6 @@
     width: 2rem;
     height: 2rem;
     padding: 0;
-    background: var(--color-surface);
-    color: var(--color-text);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    cursor: pointer;
 }
 
 /* The chevron: a small square showing only its right + bottom edges, rotated
@@ -584,12 +524,6 @@
    centered. */
 .cal-nav.is-horizontal .cal-nav-up::before   { transform: translateX(0.13rem) rotate(135deg); }
 .cal-nav.is-horizontal .cal-nav-down::before { transform: translateX(-0.13rem) rotate(315deg); }
-
-.cal-nav-btn:hover {
-    background: var(--color-surface);
-    border-color: var(--color-accent);
-    color: var(--color-accent);
-}
 
 .cal-weekdays {
     display: grid;
