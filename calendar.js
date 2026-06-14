@@ -1,5 +1,5 @@
 /* ============================================================
-   AXE CALENDAR v1.1.0
+   AXE CALENDAR v1.2.0
    An RFC 5545 (iCalendar) renderer for axe.
 
    The axe viewer renders .ics/.ical with this engine the
@@ -589,6 +589,24 @@ function elem(tag, cls, text) {
     return e;
 }
 
+// A feed's URL: field is untrusted. Only return it for an href when it carries
+// a benign scheme; otherwise null, so 'javascript:...' can never become a
+// clickable script link in this origin. Relative URLs (no scheme) are allowed.
+function safeUrl(url) {
+    if (url == null) return null;
+    const s = String(url).trim();
+    let scheme;
+    try {
+        scheme = new URL(s, 'https://x.invalid/').protocol;
+    } catch (e) {
+        return null;
+    }
+    // Same base means the input was relative (no scheme of its own) — allow it.
+    const isRelative = !/^[a-z][a-z0-9+.-]*:/i.test(s);
+    if (isRelative) return s;
+    return ['http:', 'https:', 'mailto:'].includes(scheme) ? s : null;
+}
+
 // Deterministic hue for a category, so chips are color-coded but
 // stable. Color is never the only signal — the label rides along.
 function categoryHue(name) {
@@ -844,9 +862,10 @@ function renderListEvent(ev, zone, cal) {
 
     const titleRow = elem('div', 'cal-event-title');
     const summary = elem('span', 'cal-event-summary', ev.summary || '(untitled)');
-    if (ev.url) {
+    const href = safeUrl(ev.url);
+    if (href) {
         const link = elem('a', null, ev.summary || '(untitled)');
-        link.href = ev.url;
+        link.href = href;
         link.target = '_blank';
         link.rel = 'noopener';
         titleRow.appendChild(link);
@@ -1588,9 +1607,10 @@ function openEventPopover(cal, ev, anchorEl) {
         pop.appendChild(desc);
     }
 
-    if (ev.url) {
+    const openHref = safeUrl(ev.url);
+    if (openHref) {
         const open = elem('a', 'cal-pop-open', 'Open ↗');
-        open.href = ev.url;
+        open.href = openHref;
         open.target = '_blank';
         open.rel = 'noopener';
         pop.appendChild(open);
@@ -2441,7 +2461,7 @@ Calendar.exporters = { csv: exportCsv, ical: exportIcal };
 
 // Version. Keep in sync with the axe.css / calendar.css headers and
 // the --axe-version property; read at runtime via Calendar.version.
-Calendar.version = '1.1.0';
+Calendar.version = '1.2.0';
 
 // Shared internals exposed for the month view (slice 2),
 // exporters (slice 3), and unit tests.

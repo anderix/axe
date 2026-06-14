@@ -8,12 +8,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Defense-in-depth. The viewer uses inline scripts, so script-src keeps
+         'unsafe-inline'; the value here is locking base-uri and object-src and
+         confining connect-src to same-origin (external feeds, when allowlisted,
+         must also be added to connect-src). A stronger header-based CSP with a
+         nonce and frame-ancestors is recommended at deploy time — see SECURITY.md. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'">
     <title>View</title>
     <link rel="stylesheet" href="../default.css">
     <link rel="stylesheet" href="../../brand.css"><!-- site brand (sibling of axe/); overrides default, 404s harmlessly when absent -->
     <link rel="stylesheet" href="../axe.css">
     <link rel="stylesheet" href="../calendar.css">
     <script src="../dependencies/marked.min.js"></script>
+    <script src="../dependencies/purify.min.js"></script>
     <script src="../calendar.js"></script>
     <style>
         body {
@@ -350,6 +357,22 @@
         localStorage.setItem('theme', next);
     });
 
+    // --- External-host allowlist (security) ---
+    // The viewer renders fetched content as live HTML in this origin, so an
+    // unrestricted ?url=https://… is a reflected-XSS vector: a crafted link
+    // would run a third party's markup as us. External fetch is therefore
+    // DENIED by default. To enable specific remote feeds, add their hostnames
+    // here (exact host match, e.g. 'calendar.example.com'). Leave empty to
+    // keep external fetch off entirely. Same-origin (relative) paths are
+    // always allowed and are unaffected by this list.
+    const EXTERNAL_ALLOWLIST = [];
+
+    function isAllowedExternal(rawUrl) {
+        let host;
+        try { host = new URL(rawUrl).hostname; } catch (e) { return false; }
+        return EXTERNAL_ALLOWLIST.includes(host);
+    }
+
     // --- URL parameter ---
     const params = new URLSearchParams(location.search);
     const urlParam = params.get('url');
@@ -361,6 +384,11 @@
 
     // External URL (http/https) or root-relative path
     const isExternal = /^https?:\/\//i.test(urlParam);
+
+    if (isExternal && !isAllowedExternal(urlParam)) {
+        showMessage('External URLs are not permitted by this viewer.');
+        return;
+    }
     const fetchUrl = isExternal ? urlParam : '/' + urlParam.replace(/^\//, '').replace(/\/$/, '');
     const cleanPath = isExternal ? urlParam.replace(/^https?:\/\/[^/]+\/?/, '') : urlParam.replace(/^\//, '').replace(/\/$/, '');
     const name = cleanPath.split('/').pop() || cleanPath;
@@ -617,7 +645,7 @@
             });
             html += '</tr><tr class="filter-row"><th class="row-num"></th>';
             headers.forEach((h, i) => {
-                html += '<th><input type="text" placeholder="Filter..." data-filter="' + i + '" value="' + escHtml(filters[i]) + '"></th>';
+                html += '<th><input type="text" placeholder="Filter..." data-filter="' + i + '" value="' + escAttr(filters[i]) + '"></th>';
             });
             html += '</tr></thead><tbody>';
 
@@ -754,7 +782,10 @@
 
         const content = document.getElementById('content');
         content.className = 'md-view';
-        content.innerHTML = marked.parse(text);
+        // marked does not sanitize; the document is untrusted, so scrub the
+        // rendered HTML through DOMPurify before it touches the DOM. Without
+        // this, a .md file's raw <img onerror=...> / <script> runs as our origin.
+        content.innerHTML = DOMPurify.sanitize(marked.parse(text));
     }
 
 

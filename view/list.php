@@ -5,21 +5,40 @@
 
 header('Content-Type: application/json');
 
+$root = $_SERVER['DOCUMENT_ROOT'];
+
+// Confine listing to this subtree. Default is the whole web root (the original
+// behavior); tighten it to a subdirectory to scope the viewer and avoid
+// exposing the site's full file inventory, e.g.:
+//   $confine = $root . '/files';
+$confine = $root;
+
 $path = isset($_GET['url']) ? $_GET['url'] : '';
 $path = '/' . ltrim($path, '/');
 
-// Prevent directory traversal
+// Reject obvious traversal early. The realpath containment check below is the
+// real guard; this just rejects malformed input cheaply.
 if (strpos($path, '..') !== false) {
     http_response_code(400);
     echo json_encode(['error' => 'Invalid path']);
     exit;
 }
 
-$dir = $_SERVER['DOCUMENT_ROOT'] . $path;
+$dir = realpath($root . $path);
+$confineReal = realpath($confine);
 
-if (!file_exists($dir) || !is_dir($dir)) {
+if ($dir === false || $confineReal === false || !is_dir($dir)) {
     http_response_code(404);
     echo json_encode(['error' => 'Directory not found']);
+    exit;
+}
+
+// Containment: the resolved target must sit inside the confine root. realpath
+// has already resolved any symlinks, so this also blocks a symlink that points
+// outside the tree.
+if ($dir !== $confineReal && strpos($dir, $confineReal . DIRECTORY_SEPARATOR) !== 0) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Forbidden']);
     exit;
 }
 
