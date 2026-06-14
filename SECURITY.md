@@ -16,7 +16,7 @@ The CSS framework itself (`axe.css`, `calendar.css`, `default.css`, `theme.js`) 
 
 Treat every document the viewer renders as if it were executable code. A `.md`, `.csv`, or `.ics` file is markup, and markup that reaches the DOM can carry script. Axe defends against this in two places, but the defenses are mitigation, not a license to render anything from anywhere:
 
-- **Markdown** is run through DOMPurify (`dependencies/purify.min.js`) before insertion, which strips `<script>`, `onerror`/`onload` and other event-handler attributes, and `javascript:` URLs. Do not remove this step or render Markdown with `marked.parse()` directly — `marked` does not sanitize.
+- **Markdown** is run through DOMPurify (`dependencies/purify.min.js`) before insertion, which strips `<script>`, `onerror`/`onload` and other event-handler attributes, and `javascript:` URLs. Do not remove this step or render Markdown with `marked.parse()` directly — `marked` does not sanitize. This holds for the slide-deck rendering too (`?view=slides`): each slide is one chunk of the same Markdown run through the same DOMPurify step, so presenting a `.md` carries no attack surface the document rendering does not.
 - **Calendar event URLs** (the `URL:` property of an `.ics` event) are passed through a scheme allowlist before becoming a link `href`. Only `http:`, `https:`, and `mailto:` survive; a `javascript:` URL is dropped and the event renders as plain text.
 
 CSV and TSV cells are HTML-escaped on the way into the table, so a spreadsheet cannot inject markup.

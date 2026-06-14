@@ -217,6 +217,130 @@
             padding: 2.5rem 1.5rem;
         }
 
+        /* --- Slides view: native one-at-a-time presenter ---
+           The stage is the largest 16:9 box that fits the viewport, and its
+           type scales with `cqw` (container-query width) units, so the deck
+           resizes with pure CSS — no JS measurement and no resize handler. JS
+           only drives which slide is active and the navigation. */
+        .deck {
+            position: fixed;
+            inset: 0;
+            background: var(--color-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .stage {
+            position: relative;
+            width: min(100vw, 177.78vh);  /* 16:9: clamp by width or height */
+            aspect-ratio: 16 / 9;
+            background: var(--color-surface);
+            box-shadow: var(--shadow-md);
+            container-type: size;
+            overflow: hidden;
+        }
+        .slide {
+            position: absolute;
+            inset: 0;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            padding: 6cqh 7cqw;
+            box-sizing: border-box;
+            font-size: 2.7cqw;       /* everything below sizes in em off this */
+            line-height: 1.4;
+            color: var(--color-text);
+            overflow: auto;
+        }
+        .slide.active { display: flex; }
+        .slide > :first-child { margin-top: 0; }
+        .slide > :last-child { margin-bottom: 0; }
+        .slide h1 { font-size: 2.3em; margin: 0 0 0.4em; }
+        .slide h2 { font-size: 1.7em; margin: 0 0 0.4em; color: var(--color-accent); }
+        .slide h3 { font-size: 1.25em; margin: 0 0 0.4em; }
+        .slide h1, .slide h2 {
+            border-bottom: 0.12em solid var(--color-accent);
+            padding-bottom: 0.15em;
+            display: inline-block;
+            align-self: flex-start;
+        }
+        .slide p { margin: 0.5em 0; }
+        .slide ul, .slide ol { margin: 0.5em 0; padding-left: 1.4em; }
+        .slide li { margin: 0.25em 0; }
+        .slide code {
+            font-family: var(--font-mono);
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius);
+            padding: 0.05em 0.3em;
+            font-size: 0.85em;
+        }
+        .slide pre {
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius);
+            padding: 0.8em 1em;
+            overflow: auto;
+            font-size: 0.7em;
+        }
+        .slide pre code { background: none; border: none; padding: 0; }
+        .slide blockquote {
+            margin: 0.6em 0;
+            padding: 0.5em 0.9em;
+            background: var(--color-bg);
+            border-left: 0.2em solid var(--color-highlight);
+            border-radius: var(--radius);
+        }
+        .slide table { border-collapse: collapse; font-size: 0.85em; }
+        .slide th, .slide td {
+            text-align: left;
+            padding: 0.3em 0.7em;
+            border-bottom: 1px solid var(--color-border);
+        }
+        .slide th { background: var(--color-nav-bg); color: var(--color-nav-text); }
+
+        /* Deck chrome: progress bar, counter, nav buttons. Quiet until hover. */
+        .deck-progress {
+            position: absolute;
+            left: 0; bottom: 0;
+            height: 4px; width: 100%;
+            background: var(--color-border);
+        }
+        .deck-progress-bar {
+            display: block; height: 100%; width: 0;
+            background: var(--color-accent);
+            transition: width 0.2s ease;
+        }
+        .deck-controls {
+            position: absolute;
+            right: 1rem; bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            opacity: 0.25;
+            transition: opacity 0.2s ease;
+        }
+        .deck:hover .deck-controls { opacity: 1; }
+        .deck-controls button {
+            font: inherit;
+            font-size: 1.1rem;
+            line-height: 1;
+            color: var(--color-nav-text);
+            background: var(--color-nav-bg);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius);
+            padding: 0.2em 0.5em;
+            cursor: pointer;
+        }
+        .deck-controls button:hover { background: var(--color-accent); color: #fff; }
+        .deck-counter {
+            font-size: 0.85rem;
+            color: var(--color-text-muted);
+            min-width: 3.2em;
+            text-align: center;
+        }
+
         /* --- iCalendar view --- */
         /* Full-bleed + full-height: a calendar wants all the space it can get
            (Teams-style). This element is also the calendar's own container
@@ -295,6 +419,10 @@
     // --- URL parameter ---
     const params = new URLSearchParams(location.search);
     const urlParam = params.get('url');
+    // How to render a Markdown file: the parameter is the primary switch, the
+    // analog of `pandoc -t pptx` vs `-t docx` — the target decides, not the
+    // file. Frontmatter supplies the default when no parameter is given.
+    const viewParam = (params.get('view') || '').toLowerCase();
 
     if (!urlParam) {
         showMessage('No path specified. Use <code>?url=path/to/file</code>');
@@ -318,8 +446,8 @@
     const renderers = {
         csv: renderCsv,
         tsv: renderCsv,
-        md: renderMarkdown,
-        markdown: renderMarkdown,
+        md: renderMarkdownEntry,
+        markdown: renderMarkdownEntry,
         ics: renderIcal,
         ical: renderIcal
     };
@@ -582,7 +710,46 @@
     // Markdown Renderer
     // ==========================================================
 
-    function renderMarkdown(text) {
+    // Entry point for .md / .markdown. Splits frontmatter, decides whether to
+    // render the file as a document or a slide deck, and dispatches. Both are
+    // the same .md file; only the rendering differs (pandoc's model).
+    function renderMarkdownEntry(text) {
+        const { meta, body } = parseFrontmatter(text);
+        const mode = resolveMode(meta);
+        if (mode === 'slides') {
+            renderSlides(body, meta);
+        } else {
+            renderMarkdownDoc(body);
+        }
+    }
+
+    // A leading YAML metadata block, pandoc/Jekyll style: `---` on the first
+    // line, terminated by `---` or `...`. We don't pull in a YAML parser —
+    // just scalar `key: value` lines, which is all the routing and titling
+    // need. Returns the stripped body so the frontmatter never renders as a
+    // stray rule or table.
+    function parseFrontmatter(text) {
+        const m = /^---\r?\n([\s\S]*?)\r?\n(?:---|\.\.\.)[ \t]*\r?\n?/.exec(text);
+        if (!m) return { meta: {}, body: text };
+        const meta = {};
+        m[1].split(/\r?\n/).forEach(function (line) {
+            const kv = /^([A-Za-z0-9_-]+)[ \t]*:[ \t]*(.*)$/.exec(line);
+            if (kv) meta[kv[1].toLowerCase()] = kv[2].trim().replace(/^["']|["']$/g, '');
+        });
+        return { meta: meta, body: text.slice(m[0].length) };
+    }
+
+    // The parameter wins (explicit override: ?view=slides / ?view=doc), then
+    // frontmatter (`mode: slides` | `presentation` | `deck`), else document.
+    function resolveMode(meta) {
+        if (viewParam === 'slides' || viewParam === 'deck' || viewParam === 'presentation') return 'slides';
+        if (viewParam === 'doc' || viewParam === 'document') return 'document';
+        const m = (meta.mode || '').toLowerCase();
+        if (m === 'slides' || m === 'presentation' || m === 'deck') return 'slides';
+        return 'document';
+    }
+
+    function renderMarkdownDoc(body) {
         document.getElementById('toolbar').style.display = 'flex';
         document.getElementById('title').textContent = name;
 
@@ -591,7 +758,140 @@
         // marked does not sanitize; the document is untrusted, so scrub the
         // rendered HTML through DOMPurify before it touches the DOM. Without
         // this, a .md file's raw <img onerror=...> / <script> runs as our origin.
-        content.innerHTML = DOMPurify.sanitize(marked.parse(text));
+        content.innerHTML = DOMPurify.sanitize(marked.parse(body));
+    }
+
+    // Pandoc's slide division, so the same .md a deck renders from is the file
+    // `pandoc -t pptx` exports: a horizontal rule (`---` on its own line,
+    // blank-line surrounded) always forces a new slide, and a heading at the
+    // slide level starts one too. Slide level defaults the way pandoc computes
+    // it (the highest heading level followed immediately by content) and can be
+    // pinned with a `slide-level:` frontmatter key. The presenter that renders
+    // the resulting slides is native (no third-party engine).
+    function renderSlides(body, meta) {
+        const tokens = marked.lexer(body);
+        const slideLevel = meta['slide-level']
+            ? parseInt(meta['slide-level'], 10)
+            : computeSlideLevel(tokens);
+
+        const chunks = [];
+        let current = '';
+        tokens.forEach(function (tok) {
+            if (tok.type === 'hr') {
+                chunks.push(current);
+                current = '';
+                return; // the rule is the break; it isn't rendered
+            }
+            if (tok.type === 'heading' && tok.depth <= slideLevel && current.trim() !== '') {
+                chunks.push(current);
+                current = '';
+            }
+            current += tok.raw;
+        });
+        if (current.trim() !== '') chunks.push(current);
+
+        const slides = chunks.filter(function (c) { return c.trim() !== ''; });
+
+        // Full-bleed presenter: the toolbar gives way to the deck.
+        document.getElementById('toolbar').style.display = 'none';
+        document.title = (meta.title || name);
+
+        const content = document.getElementById('content');
+        content.className = '';
+        let html = '<div class="deck"><div class="stage">';
+        slides.forEach(function (chunk) {
+            html += '<section class="slide">' + DOMPurify.sanitize(marked.parse(chunk)) + '</section>';
+        });
+        html += '</div>' +
+            '<div class="deck-progress"><span class="deck-progress-bar"></span></div>' +
+            '<div class="deck-controls">' +
+                '<button class="deck-prev" title="Previous (←)">‹</button>' +
+                '<span class="deck-counter"></span>' +
+                '<button class="deck-next" title="Next (→)">›</button>' +
+                '<button class="deck-full" title="Full screen (f)">⇱</button>' +
+            '</div></div>';
+        content.innerHTML = html;
+
+        // --- Navigation ---
+        const deck = content.querySelector('.deck');
+        const slideEls = Array.prototype.slice.call(content.querySelectorAll('.slide'));
+        const bar = content.querySelector('.deck-progress-bar');
+        const counter = content.querySelector('.deck-counter');
+        const last = slideEls.length - 1;
+        let idx = -1;
+
+        function clamp(n) { return n < 0 ? 0 : (n > last ? last : n); }
+
+        function show(n) {
+            n = clamp(n);
+            if (n === idx) return;
+            idx = n;
+            slideEls.forEach(function (el, i) { el.classList.toggle('active', i === idx); });
+            counter.textContent = (idx + 1) + ' / ' + slideEls.length;
+            bar.style.width = ((idx) / (last || 1) * 100) + '%';
+            const hash = '#' + (idx + 1);
+            if (location.hash !== hash) location.replace(hash);
+        }
+
+        function next() { show(idx + 1); }
+        function prev() { show(idx - 1); }
+
+        // Start from the hash (deep links + reload land on the same slide).
+        const fromHash = parseInt((location.hash || '').replace('#', ''), 10);
+        show(isNaN(fromHash) ? 0 : fromHash - 1);
+
+        document.addEventListener('keydown', function (e) {
+            if (e.defaultPrevented) return;
+            switch (e.key) {
+                case 'ArrowRight': case 'PageDown': case ' ': next(); break;
+                case 'ArrowLeft': case 'PageUp': prev(); break;
+                case 'Home': show(0); break;
+                case 'End': show(last); break;
+                case 'f': case 'F':
+                    if (!document.fullscreenElement) { if (deck.requestFullscreen) deck.requestFullscreen(); }
+                    else if (document.exitFullscreen) document.exitFullscreen();
+                    break;
+                default: return;
+            }
+            e.preventDefault();
+        });
+
+        content.querySelector('.deck-next').addEventListener('click', next);
+        content.querySelector('.deck-prev').addEventListener('click', prev);
+        content.querySelector('.deck-full').addEventListener('click', function () {
+            if (!document.fullscreenElement) { if (deck.requestFullscreen) deck.requestFullscreen(); }
+            else if (document.exitFullscreen) document.exitFullscreen();
+        });
+
+        // Back/forward through slide hashes.
+        window.addEventListener('hashchange', function () {
+            const h = parseInt((location.hash || '').replace('#', ''), 10);
+            if (!isNaN(h)) show(h - 1);
+        });
+
+        // Touch swipe.
+        let touchX = null;
+        deck.addEventListener('touchstart', function (e) { touchX = e.changedTouches[0].clientX; }, { passive: true });
+        deck.addEventListener('touchend', function (e) {
+            if (touchX === null) return;
+            const dx = e.changedTouches[0].clientX - touchX;
+            if (Math.abs(dx) > 40) { dx < 0 ? next() : prev(); }
+            touchX = null;
+        }, { passive: true });
+    }
+
+    function computeSlideLevel(tokens) {
+        let level = null;
+        for (let i = 0; i < tokens.length; i++) {
+            if (tokens[i].type !== 'heading') continue;
+            let j = i + 1;
+            while (j < tokens.length && tokens[j].type === 'space') j++;
+            const next = tokens[j];
+            if (next && next.type !== 'heading') {
+                if (level === null || tokens[i].depth < level) level = tokens[i].depth;
+            }
+        }
+        return level || 1;
     }
 
 

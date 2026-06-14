@@ -1,0 +1,6 @@
+Workstream,Owner,Status,Due,Notes
+Identity & access,Platform,Ahead,2026-02-14,Conditional access staged in report-only
+File shares,Infra,On track,2026-02-28,Robocopy seeding nightly
+Email & calendar,Messaging,At risk,2026-03-07,Critical path; cutover rehearsal pending
+Cutover rehearsal,PMO,Not started,2026-03-10,Blocked on messaging sign-off
+Decommission,Infra,Not started,2026-03-21,Legacy file server retired after parallel run

@@ -36,7 +36,10 @@ default.css           Default brand baseline (a complete set of contract vars).
 theme.js              Theme detection and toggle. Include in <head>.
 calendar.js           iCalendar (.ics) engine: parser, day/week/month/list views, CSV/iCal export.
 calendar.css          Calendar styles. Uses the variable contract only.
+sample.csv            Demo CSV (also the CSV-view demo and fixture).
+sample.md             Demo Markdown document (also the document-view demo and fixture).
 sample.ics            Demo calendar feed (also the viewer demo and round-trip fixture).
+sample-slides.md      Demo slide deck (also the slides-view demo and fixture).
 kitchen-sink.html     Reference page showing all styled HTML elements.
 README.md             This file.
 dependencies/
@@ -46,6 +49,8 @@ tools/
   brand-builder.html  Generates brand.css from color, font, shape, and shadow inputs.
 view/
   index.html          Axe viewer: renders one CSV, Markdown, or iCalendar file. ?url=path/to/file
+                      Markdown renders as a document or, with ?view=slides (or mode: slides
+                      frontmatter), as a native slide deck.
 ```
 
 ## How Projects Use Axe
@@ -189,6 +194,10 @@ Axe carries a single version number so you can tell which build a site is runnin
 This is a deploy-tracking stamp, not a strict semver contract; git remains the source of truth for what changed. Breaking changes to variable names still get a dated note below.
 
 While iterating, the working copy carries a `-dev` suffix (for example `0.4.1-dev`). This is deliberate: `anderix.com` runs the working copy via the symlink and gets deployed often, ahead of the last stable release that other sites vendor. The `-dev` suffix keeps the stamp honest — a site reporting `0.4.1-dev` is bleeding-edge, one reporting `0.4.0` is the last release. When a change is stable enough to push everywhere, drop the suffix (`0.4.1`) and re-vendor the files into each consuming project in the same pass.
+
+### 1.4.0 (2026-06-14)
+
+Teaches the viewer to render a Markdown file as a slide deck, on the same brand contract as everything else it renders. A `.md` file is a document by default and a deck when asked — the switch is `?view=slides` (the analog of `pandoc -t pptx`), with a `mode: slides` frontmatter key as the in-file default; `?view=doc` forces the document rendering of a deck file. Slides divide the way pandoc divides them — a blank-line-surrounded `---` rule always breaks, and a heading at the slide level breaks too, with the level autodetected (or pinned via a `slide-level:` frontmatter key) — so the same file the viewer presents is the file `pandoc -t pptx` exports. The presenter is native, no third-party engine: one slide at a time, keyboard (arrows, space, PageUp/Down, Home/End, `f` for full screen), on-screen controls, touch swipe, a progress bar, and a slide hash so deep links and back/forward work. It scales with pure CSS container-query units — no JS measurement — and the same `marked` and DOMPurify the document path already uses do the parsing and sanitizing, so a deck carries no new attack surface.
 
 ### 1.3.0 (2026-06-14)
 
