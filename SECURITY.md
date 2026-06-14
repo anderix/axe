@@ -27,9 +27,9 @@ By default the viewer only reads files from its own origin. The `?url=` paramete
 
 External URLs (`?url=https://…`) are **denied by default**. Rendering third-party content in your origin is a reflected-XSS vector — a crafted link would run someone else's markup as your site. To enable specific remote feeds, add their hostnames to the `EXTERNAL_ALLOWLIST` array near the top of the script block in `view/index.html`, and add the same hosts to the `connect-src` directive of the Content-Security-Policy. Only allowlist hosts whose content you trust as much as your own.
 
-## The directory lister
+## No server-side code
 
-`view/list.php` returns a JSON listing of a directory's contents. It has no authentication and is meant to back the viewer's file-browser mode. It is confined to a configurable subtree: the `$confine` constant at the top of the file defaults to the whole web root (the original behavior), and the request path is resolved with `realpath()` and checked to fall inside that subtree, which also blocks symlinks pointing outside it. Tighten `$confine` to the smallest directory the viewer needs (for example `$root . '/files'`) so the lister cannot enumerate the rest of your site, and never point it at a tree containing credentials, source, or other files you would not publish.
+The viewer is entirely client-side — `view/index.html` plus the vendored scripts. It has no PHP, reads no filesystem, and serves nothing it isn't pointed at. Directory browsing used to live here as a `list.php` backend; it now lives in a separate tool, [browse](https://github.com/anderix/browse), which carries the only server-side surface and its own `SECURITY.md`. Deploy browse only where you actually want directory listing, and confine it there.
 
 ## Operator responsibilities
 

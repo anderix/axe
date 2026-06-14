@@ -104,87 +104,6 @@
             min-height: 0;
         }
 
-        /* --- Directory view --- */
-        .file-list {
-            width: 100%;
-            table-layout: fixed;
-            border-collapse: collapse;
-            font-size: 0.9rem;
-        }
-
-        .file-list th {
-            text-align: left;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--color-text-muted);
-            padding: 0.5rem 0.75rem;
-            border-bottom: 1px solid var(--color-border);
-        }
-
-        .file-list .col-name { width: auto; }
-
-        .file-list .col-size,
-        .file-list .col-date {
-            text-align: right;
-            color: var(--color-text-muted);
-            font-size: 0.85rem;
-            white-space: nowrap;
-        }
-
-        .file-list .col-size { width: 100px; }
-        .file-list .col-date { width: 140px; }
-
-        .file-list td {
-            padding: 0.6rem 0.75rem;
-            border-bottom: 1px solid var(--color-border);
-            vertical-align: middle;
-        }
-
-        .file-list tbody tr {
-            cursor: default;
-            transition: background 0.1s;
-        }
-
-        .file-list tbody tr:hover {
-            background: color-mix(in srgb, var(--color-border) 40%, transparent);
-        }
-
-        .file-list tbody tr.is-folder { cursor: pointer; }
-
-        .cell-name {
-            display: flex;
-            align-items: center;
-            gap: 0.6rem;
-        }
-
-        .cell-name a {
-            color: var(--color-text);
-            text-decoration: none;
-        }
-
-        .cell-name a:hover { color: var(--color-accent); }
-
-        .is-folder .cell-name a { font-weight: 500; }
-
-        .icon {
-            width: 20px;
-            height: 20px;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .icon svg {
-            width: 18px;
-            height: 18px;
-            fill: var(--color-text-muted);
-        }
-
-        .is-folder .icon svg { fill: var(--color-accent); }
-
         /* --- CSV view --- */
         .csv-wrap {
             flex: 1;
@@ -412,9 +331,6 @@
             .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
             .then(text => renderers[ext](text, ext))
             .catch(() => showMessage('Could not load <code>' + escHtml(fetchUrl) + '</code>'));
-    } else if (!ext && !isExternal) {
-        // No extension and local: treat as directory
-        renderDir(cleanPath);
     } else if (!ext && isExternal) {
         // No extension but external: try as CSV (common for API endpoints)
         document.title = name + ' - View';
@@ -422,123 +338,13 @@
             .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
             .then(text => renderCsv(text, 'csv'))
             .catch(() => showMessage('Could not load <code>' + escHtml(fetchUrl) + '</code>'));
-    } else {
+    } else if (ext) {
         // Unknown extension: let the browser handle it directly
         location.replace(fetchUrl);
-    }
-
-
-    // ==========================================================
-    // Directory Renderer
-    // ==========================================================
-
-    const ICON_FOLDER = '<svg viewBox="0 0 24 24"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>';
-    const ICON_FILE = '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>';
-
-    function renderDir(rootPath) {
-        const rootName = rootPath.split('/').pop() || rootPath;
-
-        showToolbar();
-        document.title = rootName + ' - Files';
-
-        function showToolbar() {
-            document.getElementById('toolbar').style.display = 'flex';
-        }
-
-        function renderBreadcrumbs(subpath) {
-            const el = document.getElementById('title');
-            let html = '<a href="#/">' + escHtml(rootName) + '</a>';
-
-            if (subpath) {
-                const parts = subpath.split('/');
-                let built = '';
-                for (let i = 0; i < parts.length; i++) {
-                    built += (built ? '/' : '') + parts[i];
-                    html += '<span class="sep">/</span>';
-                    if (i === parts.length - 1) {
-                        html += escHtml(parts[i]);
-                    } else {
-                        html += '<a href="#/' + encodeURI(built) + '">' + escHtml(parts[i]) + '</a>';
-                    }
-                }
-            }
-
-            el.innerHTML = html;
-        }
-
-        function renderList(data, subpath) {
-            const el = document.getElementById('content');
-            const infoEl = document.getElementById('info');
-
-            if (!data.items || data.items.length === 0) {
-                el.innerHTML = '<p class="state-message">This folder is empty.</p>';
-                infoEl.textContent = '0 items';
-                return;
-            }
-
-            const folders = data.items.filter(i => i.type === 'folder').length;
-            const files = data.items.length - folders;
-            const parts = [];
-            if (folders) parts.push(folders + (folders === 1 ? ' folder' : ' folders'));
-            if (files) parts.push(files + (files === 1 ? ' file' : ' files'));
-            infoEl.textContent = parts.join(', ');
-
-            let html = '<table class="file-list"><thead><tr>';
-            html += '<th class="col-name">Name</th>';
-            html += '<th class="col-size">Size</th>';
-            html += '<th class="col-date">Modified</th>';
-            html += '</tr></thead><tbody>';
-
-            for (const item of data.items) {
-                const isFolder = item.type === 'folder';
-                const icon = isFolder ? ICON_FOLDER : ICON_FILE;
-                const itemPath = subpath ? subpath + '/' + item.name : item.name;
-                const fullPath = rootPath + '/' + itemPath;
-
-                let nameHtml, rowAttr;
-
-                if (isFolder) {
-                    nameHtml = '<a href="#/' + encodeURI(itemPath) + '">' + escHtml(item.name) + '</a>';
-                    rowAttr = ' class="is-folder" onclick="location.hash=\'#/' + encodeURI(itemPath) + '\'"';
-                } else {
-                    nameHtml = '<a href="?url=' + encodeURIComponent(fullPath) + '">' + escHtml(item.name) + '</a>';
-                    rowAttr = '';
-                }
-
-                html += '<tr' + rowAttr + '>';
-                html += '<td><div class="cell-name"><span class="icon">' + icon + '</span>' + nameHtml + '</div></td>';
-                html += '<td class="col-size">' + (isFolder ? '\u2014' : formatSize(item.size)) + '</td>';
-                html += '<td class="col-date">' + formatDate(item.modified) + '</td>';
-                html += '</tr>';
-            }
-
-            html += '</tbody></table>';
-            el.innerHTML = html;
-        }
-
-        function loadDir(subpath) {
-            renderBreadcrumbs(subpath);
-            document.getElementById('content').innerHTML = '<p class="state-message">Loading...</p>';
-
-            const dirPath = subpath ? rootPath + '/' + subpath : rootPath;
-            fetch('list.php?url=' + encodeURIComponent(dirPath))
-                .then(r => { if (!r.ok) throw new Error('Not found'); return r.json(); })
-                .then(data => {
-                    document.title = (subpath ? subpath.split('/').pop() : rootName) + ' - Files';
-                    renderList(data, subpath);
-                })
-                .catch(() => {
-                    document.getElementById('content').innerHTML = '<p class="state-message">Could not load this directory.</p>';
-                });
-        }
-
-        function onHashChange() {
-            const hash = decodeURIComponent(location.hash.slice(2) || '');
-            loadDir(hash);
-        }
-
-        window.addEventListener('hashchange', onHashChange);
-        onHashChange();
+    } else {
+        // No extension, local: nothing to render. Directory browsing lives in
+        // the separate `browse` tool now, not the viewer.
+        showMessage('The viewer renders a single document. Point it at a <code>.csv</code>, <code>.md</code>, or <code>.ics</code> file.');
     }
 
 
@@ -896,20 +702,6 @@
         const e = document.createElement(tag);
         if (cls) e.className = cls;
         return e;
-    }
-
-    function formatSize(bytes) {
-        if (bytes === 0) return '0 B';
-        const units = ['B', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(1024));
-        const size = bytes / Math.pow(1024, i);
-        return (i === 0 ? size : size.toFixed(1)) + ' ' + units[i];
-    }
-
-    function formatDate(ts) {
-        const d = new Date(ts * 1000);
-        const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-        return m[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
     }
 
 })();
