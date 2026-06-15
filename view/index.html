@@ -110,11 +110,15 @@
             overflow: auto;
         }
 
+        /* Auto layout sizes each column to its content (capped per cell below)
+           rather than cramming every column into the viewport; min-width:100%
+           still fills the width when a narrow file leaves slack, and the table
+           overflows .csv-wrap into a horizontal scrollbar when it's wide. */
         .csv-table {
             font-size: 0.85rem;
             border-collapse: collapse;
-            table-layout: fixed;
-            width: 100%;
+            table-layout: auto;
+            min-width: 100%;
         }
 
         .csv-table th {
@@ -148,6 +152,7 @@
             padding: 0.35rem 0.75rem;
             border-bottom: 1px solid var(--color-border);
             white-space: nowrap;
+            min-width: 5rem;
             max-width: 400px;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -206,6 +211,7 @@
             font-size: 0.75rem;
             padding-right: 0.5rem;
             width: var(--row-num-width, 2.5rem);
+            min-width: 0;
             white-space: nowrap;
             border-right: 1px solid var(--color-border);
         }

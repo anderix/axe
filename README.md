@@ -223,6 +223,10 @@ This is a deploy-tracking stamp, not a strict semver contract; git remains the s
 
 While iterating, the working copy carries a `-dev` suffix (for example `0.4.1-dev`). This is deliberate: `anderix.com` runs the working copy via the symlink and gets deployed often, ahead of the last stable release that other sites vendor. The `-dev` suffix keeps the stamp honest — a site reporting `0.4.1-dev` is bleeding-edge, one reporting `0.4.0` is the last release. When a change is stable enough to push everywhere, drop the suffix (`0.4.1`) and re-vendor the files into each consuming project in the same pass.
 
+### 1.5.2 (2026-06-15)
+
+Fixes unreadable columns in the CSV viewer on wide files. The table used `table-layout: fixed; width: 100%`, which crammed every column into the viewport and divided the width evenly regardless of content, so a many-column file squeezed each column down to a few characters. It now uses `table-layout: auto` so columns size to their content (capped at `400px` per cell, with an ellipsis), with `min-width: 100%` to still fill the width when a narrow file leaves slack and a `5rem` floor so no column collapses. Wide tables overflow into the horizontal scrollbar that the scroll container already provided. The full value of any clipped cell remains available via its hover `title`.
+
 ### 1.5.1 (2026-06-15)
 
 Fixes a contrast regression on the calendar's export buttons. The viewer's hand-built `Export CSV`, `Export iCal`, `Subscribe`, and `Copy URL` buttons carried only `cal-action`, not `cal-action ghost`. When the surface treatment moved onto the shared `.ghost` class in 1.1.0, these buttons lost their background and fell back to the framework's solid-accent base `<button>`, leaving accent-colored labels on an accent fill — unreadable, worst on dark brands. They now match the component's own actions and render as proper ghost buttons.
