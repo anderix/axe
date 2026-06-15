@@ -195,6 +195,10 @@ This is a deploy-tracking stamp, not a strict semver contract; git remains the s
 
 While iterating, the working copy carries a `-dev` suffix (for example `0.4.1-dev`). This is deliberate: `anderix.com` runs the working copy via the symlink and gets deployed often, ahead of the last stable release that other sites vendor. The `-dev` suffix keeps the stamp honest — a site reporting `0.4.1-dev` is bleeding-edge, one reporting `0.4.0` is the last release. When a change is stable enough to push everywhere, drop the suffix (`0.4.1`) and re-vendor the files into each consuming project in the same pass.
 
+### 1.4.1 (2026-06-15)
+
+Fixes the slide presenter's full-screen control, which used a single corner arrow (`⇱`) that read as pointing the wrong way. It now uses the standard direction-neutral four-corners glyph (`⛶`).
+
 ### 1.4.0 (2026-06-14)
 
 Teaches the viewer to render a Markdown file as a slide deck, on the same brand contract as everything else it renders. A `.md` file is a document by default and a deck when asked — the switch is `?view=slides` (the analog of `pandoc -t pptx`), with a `mode: slides` frontmatter key as the in-file default; `?view=doc` forces the document rendering of a deck file. Slides divide the way pandoc divides them — a blank-line-surrounded `---` rule always breaks, and a heading at the slide level breaks too, with the level autodetected (or pinned via a `slide-level:` frontmatter key) — so the same file the viewer presents is the file `pandoc -t pptx` exports. The presenter is native, no third-party engine: one slide at a time, keyboard (arrows, space, PageUp/Down, Home/End, `f` for full screen), on-screen controls, touch swipe, a progress bar, and a slide hash so deep links and back/forward work. It scales with pure CSS container-query units — no JS measurement — and the same `marked` and DOMPurify the document path already uses do the parsing and sanitizing, so a deck carries no new attack surface.
