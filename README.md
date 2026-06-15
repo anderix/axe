@@ -27,6 +27,18 @@ The viewer reads, it never writes. It fetches a representation and renders it: n
 
 4. Write semantic HTML. No classes required for standard elements.
 
+## Running Locally
+
+A page styled with Axe opens straight from disk — the CSS and the vendored scripts load over `file://` with no server needed. The viewers in `view/` are different: they `fetch()` the file you point them at, and browsers block `fetch()` of local files (every `file://` document is treated as its own opaque origin), so a viewer pointed at a local document over `file://` will report "Could not load." The fix is to serve the files over HTTP — any static server works, and no PHP or other backend is involved. The recommended option is Python's built-in server, since it's present wherever Python is:
+
+```bash
+cd path/to/axe          # or your project root
+python3 -m http.server 8000
+# then open http://localhost:8000/view/?url=sample.csv
+```
+
+Any other static server does the job too — for example `php -S localhost:8000` if you already have PHP on hand.
+
 ## Structure
 
 ```
