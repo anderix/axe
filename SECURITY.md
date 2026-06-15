@@ -27,6 +27,10 @@ By default the viewer only reads files from its own origin. The `?url=` paramete
 
 External URLs (`?url=https://…`) are **denied by default**. Rendering third-party content in your origin is a reflected-XSS vector — a crafted link would run someone else's markup as your site. To enable specific remote feeds, add their hostnames to the `EXTERNAL_ALLOWLIST` array near the top of the script block in `view/index.html`, and add the same hosts to the `connect-src` directive of the Content-Security-Policy. Only allowlist hosts whose content you trust as much as your own.
 
+## Baked (embedded) documents
+
+A file produced by `tools/cleave.py` carries its document inlined in a hidden `<textarea id="axe-embed">` and renders it instead of fetching. The document still passes through the same renderers and the same DOMPurify sanitization as the fetched path, so a baked file carries no attack surface the live viewer does not — the only difference is where the bytes come from. The document is escaped as RCDATA (`&` and `<`) so it cannot break out of the textarea, and because nothing is fetched, a baked file makes no network requests at all. Treat a baked `.html` as exactly as trustworthy as the document and the brand CSS that went into it.
+
 ## No server-side code
 
 The viewer is entirely client-side — `view/index.html` plus the vendored scripts. It has no PHP, reads no filesystem, and serves nothing it isn't pointed at. Directory browsing used to live here as a `list.php` backend; it now lives in a separate tool, [browse](https://github.com/anderix/browse), which carries the only server-side surface and its own `SECURITY.md`. Deploy browse only where you actually want directory listing, and confine it there.

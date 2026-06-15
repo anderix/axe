@@ -39,6 +39,20 @@ python3 -m http.server 8000
 
 Any other static server does the job too — for example `php -S localhost:8000` if you already have PHP on hand.
 
+## Shipping Documents (cleave)
+
+When you want to hand someone a rendered document they can just open — no server, no internet — bake it with `tools/cleave.py`. It inlines the document and only the assets that format needs into one self-contained `.html` that the viewer renders in place (over `file://`), sidestepping the fetch restriction above.
+
+```bash
+tools/cleave.py report.md            # -> report.html (a document)
+tools/cleave.py deck.md --slides     # -> deck.html (a slide deck)
+tools/cleave.py data.csv             # -> data.html (an interactive table)
+tools/cleave.py team.ics             # -> team.html (a calendar)
+tools/cleave.py report.md --brand mybrand.css   # inline a brand palette
+```
+
+For Markdown the render mode follows the same rules as the live viewer: `--slides` (or a `mode: slides` frontmatter key) makes a deck, otherwise it's a document. The output is portable and offline — email it, drop it on a share, open it from a USB stick. cleave finds the Axe assets relative to its own location, so symlinking it onto your PATH works: `ln -s "$PWD/tools/cleave.py" ~/bin/cleave`. One caveat: the default output name swaps the extension for `.html`, so `report.md` and `report.csv` would both target `report.html` — pass an explicit output name to disambiguate.
+
 ## Structure
 
 ```
@@ -59,6 +73,8 @@ dependencies/
   purify.min.js       DOMPurify — sanitizes rendered Markdown (Apache-2.0 / MPL-2.0).
 tools/
   brand-builder.html  Generates brand.css from color, font, shape, and shadow inputs.
+  cleave.py           Bakes a CSV/Markdown/iCalendar file into one self-contained
+                      HTML file that renders from disk (file://) with no server.
 view/
   index.html          Axe viewer: renders one CSV, Markdown, or iCalendar file. ?url=path/to/file
                       Markdown renders as a document or, with ?view=slides (or mode: slides
@@ -206,6 +222,10 @@ Axe carries a single version number so you can tell which build a site is runnin
 This is a deploy-tracking stamp, not a strict semver contract; git remains the source of truth for what changed. Breaking changes to variable names still get a dated note below.
 
 While iterating, the working copy carries a `-dev` suffix (for example `0.4.1-dev`). This is deliberate: `anderix.com` runs the working copy via the symlink and gets deployed often, ahead of the last stable release that other sites vendor. The `-dev` suffix keeps the stamp honest — a site reporting `0.4.1-dev` is bleeding-edge, one reporting `0.4.0` is the last release. When a change is stable enough to push everywhere, drop the suffix (`0.4.1`) and re-vendor the files into each consuming project in the same pass.
+
+### 1.5.0 (2026-06-15)
+
+Adds a serverless path for shipping rendered documents. The viewer learns an embedded-document mode: when a page contains a hidden `<textarea id="axe-embed">` carrying the document text, it renders that directly and skips the `fetch()` the live viewer normally does — which means it works over `file://`, where browsers block fetching local files. A new tool, `tools/cleave.py`, produces those pages: point it at a `.csv`, `.md`, or `.ics` and it bakes one self-contained `.html` with the document and only the assets that format needs inlined (so a CSV stays small and skips `marked`/`calendar.js`), ready to email or open from a USB stick. The same Markdown file becomes a document or a deck via `--slides`, mirroring the live viewer. Two render functions that referenced fetch-path variables (`name`, `fetchUrl`) were hoisted so the embedded path renders cleanly, including the calendar.
 
 ### 1.4.1 (2026-06-15)
 

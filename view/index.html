@@ -416,13 +416,49 @@
         return EXTERNAL_ALLOWLIST.includes(host);
     }
 
-    // --- URL parameter ---
+    // --- Source: embedded (baked) or fetched ---
     const params = new URLSearchParams(location.search);
-    const urlParam = params.get('url');
+    const embedEl = document.getElementById('axe-embed');
     // How to render a Markdown file: the parameter is the primary switch, the
     // analog of `pandoc -t pptx` vs `-t docx` — the target decides, not the
-    // file. Frontmatter supplies the default when no parameter is given.
-    const viewParam = (params.get('view') || '').toLowerCase();
+    // file. A baked file carries it as data-view; frontmatter is the fallback.
+    const viewParam = ((embedEl && embedEl.getAttribute('data-view')) || params.get('view') || '').toLowerCase();
+
+    // Shared by both source paths and read by the renderers, so they're
+    // declared with `let`: the baked branch sets `name` and leaves `fetchUrl`
+    // empty (renderIcal passes it as the calendar's sourceUrl — empty means a
+    // local/inline feed with no Subscribe link, which is exactly right here).
+    let name = '';
+    let fetchUrl = '';
+
+    const renderers = {
+        csv: renderCsv,
+        tsv: renderCsv,
+        md: renderMarkdownEntry,
+        markdown: renderMarkdownEntry,
+        ics: renderIcal,
+        ical: renderIcal
+    };
+
+    // Baked, server-free mode: `cleave` inlines the document into a hidden
+    // <textarea id="axe-embed"> so the viewer renders over file:// with no
+    // fetch (browsers block fetch() of local files). A textarea is RCDATA, so
+    // the baked content is safe to read verbatim from .value. When the block
+    // is present, render it and stop — the URL/fetch path below is never hit.
+    if (embedEl) {
+        const bakedExt = (embedEl.getAttribute('data-ext') || '').toLowerCase();
+        name = embedEl.getAttribute('data-name') || ('document.' + bakedExt);
+        document.title = name;
+        if (renderers[bakedExt]) {
+            renderers[bakedExt](embedEl.value, bakedExt);
+        } else {
+            showMessage('Embedded document type <code>' + escHtml(bakedExt) + '</code> is not supported.');
+        }
+        return;
+    }
+
+    // --- URL parameter ---
+    const urlParam = params.get('url');
 
     if (!urlParam) {
         showMessage('No path specified. Use <code>?url=path/to/file</code>');
@@ -436,21 +472,12 @@
         showMessage('External URLs are not permitted by this viewer.');
         return;
     }
-    const fetchUrl = isExternal ? urlParam : '/' + urlParam.replace(/^\//, '').replace(/\/$/, '');
+    fetchUrl = isExternal ? urlParam : '/' + urlParam.replace(/^\//, '').replace(/\/$/, '');
     const cleanPath = isExternal ? urlParam.replace(/^https?:\/\/[^/]+\/?/, '') : urlParam.replace(/^\//, '').replace(/\/$/, '');
-    const name = cleanPath.split('/').pop() || cleanPath;
+    name = cleanPath.split('/').pop() || cleanPath;
 
     // --- Determine type by extension ---
     const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
-
-    const renderers = {
-        csv: renderCsv,
-        tsv: renderCsv,
-        md: renderMarkdownEntry,
-        markdown: renderMarkdownEntry,
-        ics: renderIcal,
-        ical: renderIcal
-    };
 
     if (renderers[ext]) {
         // It's a file we can render
