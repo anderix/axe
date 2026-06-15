@@ -108,7 +108,21 @@
         .csv-wrap {
             flex: 1;
             overflow: auto;
+            /* GNOME/GTK overlay scrollbars auto-hide, so a wide table gives no
+               cue that it scrolls. Opt into a thin, always-visible on-brand bar
+               here — setting scrollbar-color is what takes Firefox out of
+               overlay mode. The ::-webkit- rules below do the same for Chromium
+               and Safari. */
+            scrollbar-width: thin;
+            scrollbar-color: var(--color-border) transparent;
         }
+
+        .csv-wrap::-webkit-scrollbar { width: 10px; height: 10px; }
+        .csv-wrap::-webkit-scrollbar-thumb {
+            background: var(--color-border);
+            border-radius: 5px;
+        }
+        .csv-wrap::-webkit-scrollbar-track { background: transparent; }
 
         /* Auto layout sizes each column to its content (capped per cell below)
            rather than cramming every column into the viewport; min-width:100%
@@ -205,7 +219,17 @@
 
         .group-hidden { display: none; }
 
+        /* Freeze the row-number column during horizontal scroll, mirroring the
+           sticky header's vertical freeze. Stacking: body cells (auto) < this
+           frozen column (6) < the sticky header row (10) < the header's own
+           number cells, which are the top-left corner and freeze on both axes
+           (12, set under thead below). The opaque background keeps the columns
+           it scrolls past from showing through. */
         .csv-table .row-num {
+            position: sticky;
+            left: 0;
+            z-index: 6;
+            background: var(--color-bg);
             color: var(--color-text-muted);
             text-align: right;
             font-size: 0.75rem;
@@ -214,6 +238,20 @@
             min-width: 0;
             white-space: nowrap;
             border-right: 1px solid var(--color-border);
+        }
+
+        /* The header's number cells (the "#" and the empty filter cell) are the
+           top-left corner: frozen on both axes, so they ride above the sticky
+           header row and the frozen column alike, and take the header surface. */
+        .csv-table thead .row-num {
+            z-index: 12;
+            background: var(--color-surface);
+        }
+
+        /* Keep the row-hover band continuous across the frozen cell — its opaque
+           background would otherwise punch a gap in the highlight. */
+        .csv-table tbody tr:hover .row-num {
+            background: color-mix(in srgb, var(--color-accent) 8%, var(--color-bg));
         }
 
         /* --- Markdown view --- */

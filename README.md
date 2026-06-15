@@ -226,6 +226,10 @@ This is a deploy-tracking stamp, not a strict semver contract; git remains the s
 
 While iterating, the working copy carries a `-dev` suffix (for example `0.4.1-dev`). This is deliberate: `anderix.com` runs the working copy via the symlink and gets deployed often, ahead of the last stable release that other sites vendor. The `-dev` suffix keeps the stamp honest — a site reporting `0.4.1-dev` is bleeding-edge, one reporting `0.4.0` is the last release. When a change is stable enough to push everywhere, drop the suffix (`0.4.1`) and re-vendor the files into each consuming project in the same pass.
 
+### 1.7.0 (2026-06-15)
+
+Makes the CSV viewer usable on wide files. The header row and the row-number column now freeze: the header stays put on vertical scroll (it already did) and the `#` column stays put on horizontal scroll, with the header's number cell pinned as the top-left corner. The scroll container also gets a thin, always-visible on-brand scrollbar instead of relying on the OS overlay scrollbar, which auto-hides on GNOME/GTK and left no cue that a wide table scrolls at all — `scrollbar-color` opts Firefox out of overlay mode, with matching `::-webkit-scrollbar` rules for Chromium and Safari.
+
 ### 1.6.0 (2026-06-15)
 
 The calendar's initial view is now selectable from the URL: `&view=day|week|month|list` (or a baked `data-view`) opens the viewer on that view. It reuses the same `?view=` parameter Markdown uses for `doc`/`slides` — one parameter whose valid values are keyed to the file type — and validates against the calendar's own view registry, so an unrecognized value (including the Markdown ones) falls back to Month, exactly as when the parameter is omitted. The narrow-screen List default is unchanged.
