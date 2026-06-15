@@ -977,9 +977,9 @@
             nodes.push(tzLabel, tzSelect);
 
             // Exports (download the current event set).
-            const csvBtn = el('button', 'cal-action'); csvBtn.textContent = 'Export CSV';
+            const csvBtn = el('button', 'cal-action ghost'); csvBtn.textContent = 'Export CSV';
             csvBtn.addEventListener('click', () => cal.export('csv'));
-            const icalBtn = el('button', 'cal-action'); icalBtn.textContent = 'Export iCal';
+            const icalBtn = el('button', 'cal-action ghost'); icalBtn.textContent = 'Export iCal';
             icalBtn.addEventListener('click', () => cal.export('ical'));
             nodes.push(csvBtn, icalBtn);
 
@@ -987,11 +987,11 @@
             // local file:// or inline source), so there's a stable URL to subscribe to.
             const sub = cal.getSubscribeUrl();
             if (sub) {
-                const subLink = el('button', 'cal-action');
+                const subLink = el('button', 'cal-action ghost');
                 subLink.textContent = 'Subscribe';
                 subLink.title = 'Subscribe in your calendar app — ' + sub.url;
                 subLink.addEventListener('click', () => { window.location.href = sub.webcal; });
-                const copyBtn = el('button', 'cal-action');
+                const copyBtn = el('button', 'cal-action ghost');
                 copyBtn.textContent = 'Copy URL';
                 copyBtn.title = 'Copy the feed URL (for Google Calendar)';
                 copyBtn.addEventListener('click', () => {
