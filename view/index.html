@@ -955,6 +955,13 @@
         const wrap = el('div', 'ical-wrap');
         content.appendChild(wrap);
 
+        // Initial view: ?view= (or a baked data-view) picks day/week/month/list,
+        // the calendar analog of the Markdown doc/slides switch — the same param,
+        // its valid values keyed to the file type. Validate against the calendar's
+        // own registry so this can't drift if a view is added; anything else
+        // (including the Markdown values) falls back to month.
+        const initialView = (Calendar.views && Calendar.views[viewParam]) ? viewParam : 'month';
+
         // The calendar owns its own toolbar now (view tabs, Today, navigation,
         // date picker). The viewer chrome above keeps the filename/calname title,
         // event count, and theme toggle — so the component's toggle is opted out.
@@ -962,7 +969,7 @@
         // ourselves) so it can offer a Subscribe link. Zone + Export + Subscribe
         // drop into the component's actions slot once its shell exists.
         const cal = new Calendar(wrap, {
-            source: text, sourceUrl: fetchUrl, view: 'month', themeToggle: false
+            source: text, sourceUrl: fetchUrl, view: initialView, themeToggle: false
         });
 
         return cal.render().then(() => {

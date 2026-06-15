@@ -110,7 +110,10 @@ The axe viewer renders `.ics` / `.ical` feeds the same way it renders CSV and Ma
 
 ```
 view/index.html?url=path/to/feed.ics
+view/index.html?url=path/to/feed.ics&view=week
 ```
+
+Append `&view=` to open on a specific view — `day`, `week`, `month`, or `list`. It's the same `?view=` parameter Markdown uses for `doc`/`slides`, its valid values keyed to the file type. Omit it (or pass anything unrecognized) and the calendar opens on Month, exactly as before — on a narrow screen the existing responsive override still makes List the default.
 
 `calendar.js` is the engine behind it: a single classic script with no dependencies and no build step, the same relationship `marked.min.js` has with Markdown. It parses RFC 5545 iCalendar, recurrence included, and renders four views — a Day and Week time grid with overlap-aware event columns and a live current-time line, a Month grid with true multi-day spanning bars, and a lazy-loading List — then exports back to CSV (RFC 4180) or iCalendar (round-trip stable). It also embeds in any page on its own.
 
@@ -222,6 +225,10 @@ Axe carries a single version number so you can tell which build a site is runnin
 This is a deploy-tracking stamp, not a strict semver contract; git remains the source of truth for what changed. Breaking changes to variable names still get a dated note below.
 
 While iterating, the working copy carries a `-dev` suffix (for example `0.4.1-dev`). This is deliberate: `anderix.com` runs the working copy via the symlink and gets deployed often, ahead of the last stable release that other sites vendor. The `-dev` suffix keeps the stamp honest — a site reporting `0.4.1-dev` is bleeding-edge, one reporting `0.4.0` is the last release. When a change is stable enough to push everywhere, drop the suffix (`0.4.1`) and re-vendor the files into each consuming project in the same pass.
+
+### 1.6.0 (2026-06-15)
+
+The calendar's initial view is now selectable from the URL: `&view=day|week|month|list` (or a baked `data-view`) opens the viewer on that view. It reuses the same `?view=` parameter Markdown uses for `doc`/`slides` — one parameter whose valid values are keyed to the file type — and validates against the calendar's own view registry, so an unrecognized value (including the Markdown ones) falls back to Month, exactly as when the parameter is omitted. The narrow-screen List default is unchanged.
 
 ### 1.5.2 (2026-06-15)
 
