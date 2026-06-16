@@ -114,15 +114,17 @@
                overlay mode. The ::-webkit- rules below do the same for Chromium
                and Safari. */
             scrollbar-width: thin;
-            scrollbar-color: var(--color-border) transparent;
+            scrollbar-color: var(--color-text-muted) color-mix(in srgb, var(--color-text-muted) 18%, transparent);
         }
 
-        .csv-wrap::-webkit-scrollbar { width: 10px; height: 10px; }
+        .csv-wrap::-webkit-scrollbar { width: 12px; height: 12px; }
         .csv-wrap::-webkit-scrollbar-thumb {
-            background: var(--color-border);
-            border-radius: 5px;
+            background: var(--color-text-muted);
+            border-radius: 6px;
         }
-        .csv-wrap::-webkit-scrollbar-track { background: transparent; }
+        .csv-wrap::-webkit-scrollbar-track {
+            background: color-mix(in srgb, var(--color-text-muted) 18%, transparent);
+        }
 
         /* Auto layout sizes each column to its content (capped per cell below)
            rather than cramming every column into the viewport; min-width:100%
@@ -130,7 +132,12 @@
            overflows .csv-wrap into a horizontal scrollbar when it's wide. */
         .csv-table {
             font-size: 0.85rem;
-            border-collapse: collapse;
+            /* separate (not collapse) is required for the sticky header to work
+               in Firefox — it drops stickiness on a th under border-collapse.
+               border-spacing:0 keeps cells flush; the single-side borders below
+               (row bottoms, the row-num right edge) don't double up. */
+            border-collapse: separate;
+            border-spacing: 0;
             table-layout: auto;
             min-width: 100%;
         }
@@ -176,9 +183,15 @@
             background: color-mix(in srgb, var(--color-accent) 8%, transparent);
         }
 
+        /* The header and filter rows are both sticky; without distinct offsets
+           they'd both pin to top:0 and the filter row (later in the DOM) would
+           cover the header. Sit the filter row just below the header — its
+           height is measured per render into --head-h (it varies with the
+           font/zoom), with a sane fallback. */
         .csv-table .filter-row th {
             padding: 0.25rem 0.5rem;
             border-bottom: 2px solid var(--color-border);
+            top: var(--head-h, 2.4rem);
         }
 
         .csv-table .filter-row input {
@@ -606,6 +619,14 @@
         const content = document.getElementById('content');
         content.innerHTML = '';
         content.className = 'csv-wrap';
+        // Bound the flex chain (body -> main -> .csv-wrap) to the viewport so
+        // .csv-wrap is the scroll container on BOTH axes. The default body is
+        // min-height:100vh and grows with content, which makes the page scroll
+        // instead: the sticky header then has no inner scroller to stick within,
+        // and the horizontal scrollbar ends up at the foot of a too-tall wrap,
+        // below the fold. Pinning the height fixes both (same move as the
+        // calendar's list view).
+        document.body.style.height = '100vh';
 
         const table = document.createElement('table');
         table.className = 'csv-table';
@@ -687,6 +708,11 @@
             html += '</tbody>';
             table.innerHTML = html;
             rowCount.textContent = visibleCount + ' of ' + data.length + ' rows';
+
+            // Pin the sticky filter row directly below the sticky header row by
+            // measuring the header's rendered height (varies with font/zoom).
+            const headRow = table.querySelector('thead tr');
+            if (headRow) table.style.setProperty('--head-h', headRow.offsetHeight + 'px');
 
             table.querySelectorAll('th[data-col]').forEach(th => {
                 th.addEventListener('click', () => {
