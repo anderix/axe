@@ -226,6 +226,10 @@ This is a deploy-tracking stamp, not a strict semver contract; git remains the s
 
 While iterating, the working copy carries a `-dev` suffix (for example `0.4.1-dev`). This is deliberate: `anderix.com` runs the working copy via the symlink and gets deployed often, ahead of the last stable release that other sites vendor. The `-dev` suffix keeps the stamp honest — a site reporting `0.4.1-dev` is bleeding-edge, one reporting `0.4.0` is the last release. When a change is stable enough to push everywhere, drop the suffix (`0.4.1`) and re-vendor the files into each consuming project in the same pass.
 
+### 1.7.2 (2026-06-15)
+
+Widens the CSV viewer's always-visible scrollbars to roughly 1.75x. Firefox's `scrollbar-width` takes no pixel value, so it moves from `thin` to `auto` (its wide track); Chromium and Safari get an explicit 21px width via the `::-webkit-scrollbar` rule, with the thumb radius bumped to match.
+
 ### 1.7.1 (2026-06-15)
 
 Makes the 1.7.0 CSV freezing actually work in Firefox, where it didn't. Three causes: the page body grew with content so the whole page scrolled rather than `.csv-wrap`, leaving the sticky header nothing to stick within and pushing the horizontal scrollbar below the fold — the body is now pinned to the viewport so `.csv-wrap` is the scroll container on both axes; `position: sticky` on a `<th>` is silently dropped under `border-collapse: collapse` in Firefox, so the table is now `border-collapse: separate`; and the header and filter rows both pinned to `top: 0` and overlapped, so the filter row is now offset below the header by its measured height. The always-visible scrollbar's thumb also moved from the too-faint `--color-border` to the muted-text gray so it actually reads.

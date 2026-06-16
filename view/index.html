@@ -109,18 +109,19 @@
             flex: 1;
             overflow: auto;
             /* GNOME/GTK overlay scrollbars auto-hide, so a wide table gives no
-               cue that it scrolls. Opt into a thin, always-visible on-brand bar
-               here — setting scrollbar-color is what takes Firefox out of
-               overlay mode. The ::-webkit- rules below do the same for Chromium
-               and Safari. */
-            scrollbar-width: thin;
+               cue that it scrolls. Opt into an always-visible on-brand bar here
+               — setting scrollbar-color is what takes Firefox out of overlay
+               mode. Firefox's scrollbar-width takes no pixel value, so `auto`
+               is the wide track; the ::-webkit- rules set an explicit ~1.75x
+               width for Chromium and Safari. */
+            scrollbar-width: auto;
             scrollbar-color: var(--color-text-muted) color-mix(in srgb, var(--color-text-muted) 18%, transparent);
         }
 
-        .csv-wrap::-webkit-scrollbar { width: 12px; height: 12px; }
+        .csv-wrap::-webkit-scrollbar { width: 21px; height: 21px; }
         .csv-wrap::-webkit-scrollbar-thumb {
             background: var(--color-text-muted);
-            border-radius: 6px;
+            border-radius: 10px;
         }
         .csv-wrap::-webkit-scrollbar-track {
             background: color-mix(in srgb, var(--color-text-muted) 18%, transparent);
