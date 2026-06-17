@@ -31,6 +31,7 @@ LINK_CALCSS = I + '<link rel="stylesheet" href="../calendar.css">'
 SRC_MARKED = I + '<script src="../dependencies/marked.min.js"></script>'
 SRC_PURIFY = I + '<script src="../dependencies/purify.min.js"></script>'
 SRC_CALJS = I + '<script src="../calendar.js"></script>'
+SRC_THEME = I + '<script src="../theme.js"></script>'
 
 # Which assets each format actually uses (mirrors the viewer's renderers).
 NEEDS = {
@@ -117,6 +118,7 @@ def main():
         SRC_MARKED:   script_block(read(AXE_ROOT / "dependencies" / "marked.min.js"), "marked.min.js") if needs["marked"] else "",
         SRC_PURIFY:   script_block(read(AXE_ROOT / "dependencies" / "purify.min.js"), "purify.min.js") if needs["purify"] else "",
         SRC_CALJS:    script_block(read(AXE_ROOT / "calendar.js"), "calendar.js") if needs["calendar"] else "",
+        SRC_THEME:    script_block(read(AXE_ROOT / "theme.js"), "theme.js"),
     }
     for tag, replacement in repl.items():
         if tag not in html:

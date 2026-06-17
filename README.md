@@ -226,6 +226,10 @@ This is a deploy-tracking stamp, not a strict semver contract; git remains the s
 
 While iterating, the working copy carries a `-dev` suffix (for example `0.4.1-dev`). This is deliberate: `anderix.com` runs the working copy via the symlink and gets deployed often, ahead of the last stable release that other sites vendor. The `-dev` suffix keeps the stamp honest — a site reporting `0.4.1-dev` is bleeding-edge, one reporting `0.4.0` is the last release. When a change is stable enough to push everywhere, drop the suffix (`0.4.1`) and re-vendor the files into each consuming project in the same pass.
 
+### 1.7.3 (2026-06-17)
+
+Fixes the viewer's theme toggle needing two clicks on first use, and removes the drift that caused it. The viewer had hand-copied `theme.js`'s detect-and-toggle logic inline, but dropped the `prefers-color-scheme` fallback from the init — so when the OS was in dark mode with no saved choice, the page rendered dark via the media query with no `data-theme` attribute set, and the first click merely re-asserted dark (a visual no-op) before the second flipped it. The viewer now loads `theme.js` in `<head>` like it already loads `calendar.js`, deleting both inline copies, so there is one source of truth. `cleave` learned a `SRC_THEME` entry to inline `theme.js` into baked files, parallel to `SRC_CALJS`; its template-drift guard now fails the bake loudly if that script tag ever goes missing.
+
 ### 1.7.2 (2026-06-15)
 
 Widens the CSV viewer's always-visible scrollbars to roughly 1.75x. Firefox's `scrollbar-width` takes no pixel value, so it moves from `thin` to `auto` (its wide track); Chromium and Safari get an explicit 21px width via the `::-webkit-scrollbar` rule, with the thumb radius bumped to match.

@@ -22,6 +22,7 @@
     <script src="../dependencies/marked.min.js"></script>
     <script src="../dependencies/purify.min.js"></script>
     <script src="../calendar.js"></script>
+    <script src="../theme.js"></script>
     <style>
         body {
             display: flex;
@@ -430,10 +431,6 @@
             .ical-wrap { padding: 1rem 0.75rem; }
         }
     </style>
-    <script>
-        const saved = localStorage.getItem('theme');
-        if (saved) document.documentElement.setAttribute('data-theme', saved);
-    </script>
 </head>
 <body>
 
@@ -450,13 +447,8 @@
 <script>
 (function() {
 
-    // --- Theme toggle ---
-    document.querySelector('.theme-toggle').addEventListener('click', () => {
-        const current = document.documentElement.getAttribute('data-theme');
-        const next = current === 'dark' ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme', next);
-        localStorage.setItem('theme', next);
-    });
+    // Theme detection + toggle binding live in ../theme.js (loaded in <head>,
+    // inlined into baked files by cleave's SRC_THEME). Don't re-roll it here.
 
     // --- External-host allowlist (security) ---
     // The viewer renders fetched content as live HTML in this origin, so an
