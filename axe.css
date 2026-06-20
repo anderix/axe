@@ -1,5 +1,5 @@
 /* ============================================================
-   AXE v1.7.4
+   AXE v1.7.5
    Semantic-first. Classless defaults.
    Write plain HTML. It looks good.
 
@@ -11,7 +11,7 @@
    calendar.css / calendar.js. Audit a deployment with
    `curl <site>/axe/axe.css | head`, or read --axe-version in devtools. */
 :root {
-    --axe-version: "1.7.4";
+    --axe-version: "1.7.5";
 
     /* Stacking scale. Structural, not brand: a shared ladder so a sticky
        bar, a popover, and a modal layer predictably across components (e.g.
@@ -19,6 +19,13 @@
     --z-sticky:  100;
     --z-popover: 200;
     --z-modal:   300;
+
+    /* Default glyphs drawn on a bare .theme-toggle (see the rules below). The
+       icon shows the *current* theme: a sun in light, a moon in dark. Both are
+       monochrome dingbats so they inherit currentColor. A site can swap them by
+       redefining these two properties in its brand.css/style.css. */
+    --theme-toggle-icon-light: "\2600";   /* ☀ */
+    --theme-toggle-icon-dark:  "\263E";   /* ☾ */
 }
 
 
@@ -607,6 +614,30 @@ footer {
     background: none;    /* re-assert: the generic button:hover would otherwise fill it accent */
     border-color: var(--color-accent);
     color: var(--color-accent);
+}
+
+/* Default sun/moon glyph, so a bare <button class="theme-toggle"></button>
+   shows a working icon with no inner markup. Scoped to :empty so a consumer
+   who puts their own content (a label, an emoji, a <span>) in the button keeps
+   it untouched — purely additive. The icon tracks the *resolved* theme the same
+   two ways default.css resolves dark, so it agrees with the painted theme even
+   before theme.js runs or with JS disabled: the explicit [data-theme="dark"]
+   attribute, and the OS preference when no light choice overrides it. Note
+   :empty means literally no child nodes — the button must be written with
+   nothing, not even whitespace, between the tags. The button still needs an
+   aria-label; this ::before is decorative. */
+.theme-toggle:empty::before {
+    content: var(--theme-toggle-icon-light);
+}
+
+[data-theme="dark"] .theme-toggle:empty::before {
+    content: var(--theme-toggle-icon-dark);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .theme-toggle:empty::before {
+        content: var(--theme-toggle-icon-dark);
+    }
 }
 
 /* In the nav, the toggle uses the nav palette, not the body palette. */
