@@ -271,6 +271,11 @@
 
         /* --- Markdown view --- */
         .md-view {
+            /* width:100% for the same reason body>main needs it: as a flex item
+               in the flex-column main, the auto cross-axis margins disable the
+               stretch, so without an explicit width a short document shrinks to
+               its content and floats centered instead of filling the column. */
+            width: 100%;
             max-width: 860px;
             margin: 0 auto;
             padding: 2.5rem 1.5rem;
