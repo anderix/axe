@@ -224,7 +224,11 @@ Axe carries a single version number so you can tell which build a site is runnin
 
 This is a deploy-tracking stamp, not a strict semver contract; git remains the source of truth for what changed. Breaking changes to variable names still get a dated note below.
 
-While iterating, the working copy carries a `-dev` suffix (for example `0.4.1-dev`). This is deliberate: `anderix.com` runs the working copy via the symlink and gets deployed often, ahead of the last stable release that other sites vendor. The `-dev` suffix keeps the stamp honest — a site reporting `0.4.1-dev` is bleeding-edge, one reporting `0.4.0` is the last release. When a change is stable enough to push everywhere, drop the suffix (`0.4.1`) and re-vendor the files into each consuming project in the same pass.
+The working copy is stamped with a plain release version — no `-dev` suffix. Most consumers (`anderix.com`, `excelano.com`, `troop99.org`, `xinglet.com`) ride the `axe -> ~/axe` symlink, so they deploy whatever the working copy holds the next time `updatesite` runs; there is no separate vendor step to lag behind. Stamp the version you're shipping the moment you make the change (via `./set-version.sh`), and that's what those sites report on their next deploy. The only true hard copies are projects like [interpreter-strip](https://github.com/anderix/interpreter-strip) that vendor a subset of files by hand; re-vendor those in the same pass when a change affects them.
+
+### 1.7.4 (2026-06-19)
+
+Clicking a slide now advances the deck, matching the PowerPoint/Keynote default — previously the only ways forward on a desktop were the arrow keys (or Space/PageDown) and the small `›` button. The handler lives on the `.stage` so the control bar is unaffected, and it skips clicks on in-deck links and on click-drags that selected text, so following a link or copying a quote no longer jumps a slide. Back-navigation stays on the keys and the `‹` button, leaving right-click to the browser's context menu.
 
 ### 1.7.3 (2026-06-17)
 

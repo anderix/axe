@@ -968,6 +968,17 @@
             if (Math.abs(dx) > 40) { dx < 0 ? next() : prev(); }
             touchX = null;
         }, { passive: true });
+
+        // Click the slide to advance (PowerPoint/Keynote default). Skip clicks
+        // on links so in-deck navigation still works, and skip click-drags that
+        // selected text so copying a quote doesn't jump a slide. Back-nav stays
+        // on the keys/button so right-click keeps the browser context menu.
+        const stage = content.querySelector('.stage');
+        stage.addEventListener('click', function (e) {
+            if (e.target.closest('a')) return;
+            if (window.getSelection().toString()) return;
+            next();
+        });
     }
 
     function computeSlideLevel(tokens) {

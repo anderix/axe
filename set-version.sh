@@ -3,8 +3,10 @@
 # set-version.sh — stamp a new axe version across every file that carries it.
 #
 # Usage:
-#   ./set-version.sh 0.4.1        # a release
-#   ./set-version.sh 0.4.1-dev    # back to the working-copy suffix
+#   ./set-version.sh 0.4.1        # stamp a plain release version
+#
+# The working copy is always stamped with a plain release version (no -dev
+# suffix); see the Versioning section in README.md.
 #
 # Touches the 6 stamps: axe.css (header + --axe-version), calendar.css (header),
 # calendar.js (header + Calendar.version), and kitchen-sink.html (footer). It
@@ -16,18 +18,19 @@ cd "$(dirname "$0")"
 
 NEW="${1:-}"
 if [ -z "$NEW" ]; then
-    echo "usage: $0 <version>   e.g. $0 0.4.1   or   $0 0.4.1-dev" >&2
+    echo "usage: $0 <version>   e.g. $0 0.4.1" >&2
     exit 1
 fi
 
-# Shape check: digits.digits.digits with an optional -suffix (e.g. -dev).
+# Shape check: digits.digits.digits, with an optional pre-release suffix still
+# tolerated (e.g. -rc1) even though releases are stamped plain.
 if ! [[ "$NEW" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-z0-9.]+)?$ ]]; then
-    echo "error: '$NEW' isn't a version (expected e.g. 0.4.1 or 0.4.1-dev)" >&2
+    echo "error: '$NEW' isn't a version (expected e.g. 0.4.1)" >&2
     exit 1
 fi
 
 # Matches an existing version token wherever it appears: starts with a digit,
-# then any digits / letters / dots / hyphens (so it catches 0.4.0 and 0.4.1-dev).
+# then any digits / letters / dots / hyphens (so it still catches an old suffix).
 V='[0-9][0-9A-Za-z.-]*'
 
 # axe.css — banner comment and the --axe-version custom property.
