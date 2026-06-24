@@ -1,5 +1,5 @@
 /* ============================================================
-   AXE v1.7.6
+   AXE v1.7.7
    Semantic-first. Classless defaults.
    Write plain HTML. It looks good.
 
@@ -11,7 +11,7 @@
    calendar.css / calendar.js. Audit a deployment with
    `curl <site>/axe/axe.css | head`, or read --axe-version in devtools. */
 :root {
-    --axe-version: "1.7.6";
+    --axe-version: "1.7.7";
 
     /* Stacking scale. Structural, not brand: a shared ladder so a sticky
        bar, a popover, and a modal layer predictably across components (e.g.
@@ -22,10 +22,12 @@
 
     /* Default glyphs drawn on a bare .theme-toggle (see the rules below). The
        icon shows the *current* theme: a sun in light, a moon in dark. Both are
-       monochrome dingbats so they inherit currentColor. A site can swap them by
-       redefining these two properties in its brand.css/style.css. */
-    --theme-toggle-icon-light: "\2600";   /* ☀ */
-    --theme-toggle-icon-dark:  "\263E";   /* ☾ */
+       monochrome dingbats so they inherit currentColor. The trailing \FE0E is a
+       text-presentation variation selector: without it U+2600 defaults to a
+       color emoji sun on iOS/Android/some Chromium builds. A site can swap them
+       by redefining these two properties in its brand.css/style.css. */
+    --theme-toggle-icon-light: "\2600\FE0E";   /* ☀ */
+    --theme-toggle-icon-dark:  "\263E\FE0E";   /* ☾ */
 }
 
 

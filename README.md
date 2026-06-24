@@ -228,6 +228,10 @@ This is a deploy-tracking stamp, not a strict semver contract; git remains the s
 
 The working copy is stamped with a plain release version — no `-dev` suffix. Most consumers (`anderix.com`, `excelano.com`, `troop99.org`, `xinglet.com`) ride the `axe -> ~/axe` symlink, so they deploy whatever the working copy holds the next time `updatesite` runs; there is no separate vendor step to lag behind. Stamp the version you're shipping the moment you make the change (via `./set-version.sh`), and that's what those sites report on their next deploy. The only true hard copies are projects like [interpreter-strip](https://github.com/anderix/interpreter-strip) that vendor a subset of files by hand; re-vendor those in the same pass when a change affects them.
 
+### 1.7.7 (2026-06-24)
+
+The default theme-toggle glyphs now carry a trailing `\FE0E` text-presentation variation selector (`"\2600\FE0E"` / `"\263E\FE0E"`). Without it, U+2600 defaults to a colour emoji sun on iOS, Android, and some Chromium builds instead of the intended monochrome dingbat that inherits `currentColor`. No markup or API change — the override properties still hold plain `content` strings.
+
 ### 1.7.6 (2026-06-20)
 
 The document viewer no longer floats a short Markdown file as a shrunken block near the centre of the page. `.md-view` is a flex item in the flex-column `main`, and its `margin: 0 auto` disables the cross-axis stretch — so without an explicit width it sized to its content instead of the column, and a two-line document drifted to the middle of the viewport. It now carries `width: 100%` for the same reason `body > main` already does, so every document fills the centred 860px column and short pages read left-aligned from the column edge like long ones. Surfaced by a short page in the xcribe drop-in; the bug was latent for any brief document.
